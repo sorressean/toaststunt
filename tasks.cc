@@ -57,7 +57,6 @@ typedef enum {
     TASK_OOB,		/* out-of-band unless disable_oob */
     TASK_QUOTED,	/* in-band; needs unquote unless disable-oob */
     TASK_BINARY,	/* in-band; binary mode string */
-    TASK_TELNET,    /* telnet IAC sequences */
     /* Background Tasks */
     TASK_FORKED,
     TASK_SUSPENDED,
