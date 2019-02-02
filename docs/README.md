@@ -59,6 +59,7 @@ ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [Cha
     - chr (return extended ASCII characters; characters that can corrupt your database are considered invalid)
     - deep_contents (get all nested contents of an object. Provide as a second argument a parent if you want only descendants of that parent returned)
     - contains_key/contains_value (Determines if the map contains the specified key/value)
+    - intersection, union, diff (set operations, taken and modified from Goblin's extension pack)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name

@@ -1,5 +1,6 @@
 #include <set>
 #include <math.h>           // sqrt, atan, round, etc
+#include "collection.h" //ismember
 #include "functions.h"      // register builtins
 #include "db_private.h"
 #include "log.h"            // oklog()
@@ -690,6 +691,108 @@ static package bf_contains_value(Var arglist, Byte next, void *vdata, Objid prog
     return make_var_pack(ret);
 }
 
+/**
+* Intersection, difference, union are all taken from Goblin's extension pack and modified.
+*/
+static package
+bf_intersection(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    for (int x = 2; x <= arglist.v.list[0].v.num; ++x)
+        {
+            if (arglist.v.list[x].type != TYPE_LIST)
+                {
+                    free_var(arglist);
+                    return make_error_pack(E_TYPE);
+                }
+        }
+
+    Var r = arglist.v.list[0].v.num ? var_dup(arglist.v.list[1]) : new_list(0);
+
+    if (arglist.v.list[0].v.num > 1)
+        {
+            int y = 0;
+            int x = 0;
+            for (x = 2; x <= arglist.v.list[0].v.num; x++)
+                {
+                    if (r.v.list[0].v.num < arglist.v.list[x].v.list[0].v.num)
+                        {
+                            for (y = 1; y <= r.v.list[0].v.num; y++)
+                                {
+                                    if (!ismember(r.v.list[y], arglist.v.list[x], 0))
+                                        {
+                                            r = listdelete(r, y);
+                                            y--;
+                                        }
+                                }
+                        }
+                    else
+                        {
+                            for (y = 1; y <= arglist.v.list[x].v.list[0].v.num; y++)
+                                {
+                                    if (!ismember(arglist.v.list[x].v.list[y], r, 0))
+                                        {
+                                            arglist.v.list[x] = listdelete(arglist.v.list[x], y);
+                                            y--;
+                                        }
+                                }
+                            free_var(r);
+                            r = var_dup(arglist.v.list[x]);
+                        }
+                }
+        }
+
+    free_var(arglist);
+    return make_var_pack(r);
+}
+
+static package
+bf_diff(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var result = var_dup(arglist.v.list[1]);
+    int x, y;
+
+    for (x = 2; x <= arglist.v.list[0].v.num; x++)
+        {
+            if (arglist.v.list[x].type != TYPE_LIST)
+                {
+                    free_var(result);
+                    free_var(arglist);
+                    return make_error_pack(E_TYPE);
+                }
+            for (y = 1; y <= arglist.v.list[x].v.list[0].v.num; y++)
+                {
+                    result = setremove(result, arglist.v.list[x].v.list[y]);
+                }
+        }
+
+    free_var(arglist);
+    return make_var_pack(result);
+}
+
+static package
+bf_union(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var result = arglist.v.list[0].v.num ? var_dup(arglist.v.list[1]) : new_list(0);
+    int x, y;
+
+    for (x = 2; x <= arglist.v.list[0].v.num; x++)
+        {
+            if (arglist.v.list[x].type != TYPE_LIST)
+                {
+                    free_var(arglist);
+                    free_var(result);
+                    return make_error_pack(E_TYPE);
+                }
+            for (y = 1; y <= arglist.v.list[x].v.list[0].v.num; y++)
+                {
+                    result = setadd(result, arglist.v.list[x].v.list[y]);
+                }
+        }
+
+    free_var(arglist);
+    return make_var_pack(result);
+}
+
     void
 register_extensions()
 {
@@ -709,6 +812,9 @@ register_extensions()
     register_function("deep_contents", 1, 2, bf_deep_contents, TYPE_OBJ, TYPE_OBJ);
     register_function("contains_key", 2, 2, bf_contains_key, TYPE_MAP, TYPE_ANY);
     register_function("contains_value", 2, 2, bf_contains_value, TYPE_MAP, TYPE_ANY);
+    register_function("intersection", 1, -1, bf_intersection, TYPE_LIST);
+    register_function("difference", 1, -1, bf_diff, TYPE_LIST);
+    register_function("union", 1, -1, bf_union, TYPE_LIST);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
