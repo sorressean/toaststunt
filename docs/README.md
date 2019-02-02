@@ -60,6 +60,7 @@ ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [Cha
     - deep_contents (get all nested contents of an object. Provide as a second argument a parent if you want only descendants of that parent returned)
     - contains_key/contains_value (Determines if the map contains the specified key/value)
     - intersection, union, diff (set operations, taken and modified from Goblin's extension pack)
+    - assoc, iassoc, slice (taken from Martian's list extensions).
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name

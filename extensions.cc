@@ -793,6 +793,123 @@ bf_union(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(result);
 }
 
+/**
+* The following extensions are taken from martian's list extensions and modified.
+*/
+static Var list_assoc(Var& vtarget, Var& vlist, const int vindex)
+{
+    for (int i = 1; i <= vlist.v.list[0].v.num; ++i)
+        {
+            if (vlist.v.list[i].type == TYPE_LIST &&
+                    vlist.v.list[i].v.list[0].v.num >= vindex &&
+                    equality(vlist.v.list[i].v.list[vindex], vtarget, 0))
+                {
+                    return var_dup(vlist.v.list[i]);
+                }
+        }
+
+    return new_list(0);
+}
+
+static int list_iassoc(Var& vtarget, Var& vlist, const int vindex)
+{
+    for (int i = 1; i <= vlist.v.list[0].v.num; ++i)
+        {
+            if (vlist.v.list[i].type == TYPE_LIST &&
+                    vlist.v.list[i].v.list[0].v.num >= vindex &&
+                    equality(vlist.v.list[i].v.list[vindex], vtarget, 0))
+                {
+                    return i;
+                }
+        }
+
+    return 0;
+}
+
+static void InitListToZero(Var list)
+{
+    const Var z = Var::new_int(0);
+
+    for(int i=1; i <= list.v.list[0].v.num; ++i)
+        list.v.list[i]=z;
+}
+
+static package
+bf_iassoc(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    /* (ANY, LIST[, INT]) */
+    int index = 1;
+    if (arglist.v.list[0].v.num == 3)
+        index = arglist.v.list[3].v.num;
+
+    if (index < 1)
+        {
+            free_var(arglist);
+            return make_error_pack(E_RANGE);
+        }
+
+    Var r = Var::new_int(list_iassoc(arglist.v.list[1], arglist.v.list[2], index));
+
+    free_var(arglist);
+    return make_var_pack(r);
+}
+
+static package
+bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    /* (ANY, LIST[, INT]) */
+    int index = 1;
+    if (arglist.v.list[0].v.num == 3)
+        index = arglist.v.list[3].v.num;
+
+    if (index < 1)
+        {
+            free_var(arglist);
+            return make_error_pack(E_RANGE);
+        }
+
+    Var r = list_assoc(arglist.v.list[1], arglist.v.list[2], index);
+
+    free_var(arglist);
+    return make_var_pack(r);
+}
+
+static package
+bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const int length = arglist.v.list[0].v.num;
+    if(length < 0)
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    Var ret = new_list(length);
+    InitListToZero(ret);
+
+    int c = 0;
+    if(arglist.v.list[0].v.num == 2)
+        c = arglist.v.list[2].v.num;
+    else
+        c = 1;
+
+    const Var list=arglist.v.list[1];
+    for(int i = 1; i <= length; ++i)
+        if( list.v.list[i].type != TYPE_LIST || list.v.list[i].v.list[0].v.num < c )
+            {
+                free_var(ret);
+                free_var(arglist);
+                return make_error_pack(E_INVARG);
+            }
+        else
+            {
+                ret.v.list[i] = var_dup(list.v.list[i].v.list[c]);
+            }
+
+    free_var(arglist);
+    return make_var_pack(ret);
+}
+
     void
 register_extensions()
 {
@@ -815,6 +932,9 @@ register_extensions()
     register_function("intersection", 1, -1, bf_intersection, TYPE_LIST);
     register_function("difference", 1, -1, bf_diff, TYPE_LIST);
     register_function("union", 1, -1, bf_union, TYPE_LIST);
+    register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
+    register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
+    register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_INT);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
