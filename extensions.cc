@@ -3,6 +3,7 @@
 #include "functions.h"      // register builtins
 #include "db_private.h"
 #include "log.h"            // oklog()
+#include "map.h"
 #include "utils.h"          // streams
 #include "numbers.h"        // new_float()
 #include "list.h"           // listappend and friends
@@ -649,6 +650,46 @@ bf_deep_contents(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(array);
 }
 
+/**
+*The next two builtins are going to help with things like this:
+* if (!(foo in (mapkeys(bar))))
+* etc.
+* Simplified down to if (!contains_key(bar, foo))
+* contains_value works the exact same way except that it looks for values.
+* There is not a performance improvement using in vs contains_key, they both have to iterate over the entire map.
+*/
+static int do_contains_key(Var key, Var value, void *data, int first)
+{
+    Var* search = (Var*)data;
+    return equality(key, *search, 1);
+}
+static package bf_contains_key(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const int result = mapforeach(arglist.v.list[1], do_contains_key, &arglist.v.list[2]);
+    free_var(arglist);
+
+    Var ret;
+    ret.type=TYPE_INT;
+    ret.v.num = result;
+    return make_var_pack(ret);
+}
+
+static int do_contains_value(Var key, Var value, void *data, int first)
+{
+    Var* search = (Var*)data;
+    return equality(value, *search, 1);
+}
+static package bf_contains_value(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const int result = mapforeach(arglist.v.list[1], do_contains_value, &arglist.v.list[2]);
+    free_var(arglist);
+
+    Var ret;
+    ret.type=TYPE_INT;
+    ret.v.num = result;
+    return make_var_pack(ret);
+}
+
     void
 register_extensions()
 {
@@ -666,6 +707,8 @@ register_extensions()
     register_function("locations", 1, 1, bf_locations, TYPE_OBJ);
     register_function("chr", 1, 1, bf_chr, TYPE_INT);
     register_function("deep_contents", 1, 2, bf_deep_contents, TYPE_OBJ, TYPE_OBJ);
+    register_function("contains_key", 2, 2, bf_contains_key, TYPE_MAP, TYPE_ANY);
+    register_function("contains_value", 2, 2, bf_contains_value, TYPE_MAP, TYPE_ANY);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
