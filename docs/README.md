@@ -61,6 +61,7 @@ ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [Cha
     - contains_key/contains_value (Determines if the map contains the specified key/value)
     - intersection, union, diff (set operations, taken and modified from Goblin's extension pack)
     - assoc, iassoc, slice (taken from Martian's list extensions).
+    - set_merge (merges two lists together using setadd)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name

@@ -910,6 +910,27 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(ret);
 }
 
+/**
+* The following builtin is made to help combining of sets.
+* It replaces the following moo code (assuming s and t are both sets):
+* for i in (s)
+* t = setadd(t, i);
+* endfor
+* This is also much faster because we create the set before adding it to the moo list.
+*/
+static package
+bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var newList = list_dup(arglist.v.list[1]);
+//now add the second one.
+    for (int index = 1; index <= arglist.v.list[2].v.list[0].v.num; ++index)
+        {
+            newList = setadd(newList, arglist.v.list[2].v.list[index]);
+        }
+    free_var(arglist);
+    return make_var_pack(newList);
+}
+
     void
 register_extensions()
 {
@@ -935,6 +956,7 @@ register_extensions()
     register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_INT);
+    register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
