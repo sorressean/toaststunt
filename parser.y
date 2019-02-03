@@ -157,6 +157,19 @@ statement:
 		    $$->s.list.body = $8;
 		    pop_loop_name();
 		}
+	| tFOR '(' tID ':' expr ')'
+		{
+		    push_loop_name($3);
+		}
+	  statements tENDFOR
+		{
+		    $$ = alloc_stmt(STMT_LIST);
+		    $$->s.list.id = find_id($3);
+		    $$->s.list.index = -1;
+		    $$->s.list.expr = $5;
+		    $$->s.list.body = $8;
+		    pop_loop_name();
+		}
 	| tFOR tID ',' tID tIN '(' expr ')'
 		{
 		    push_loop_name($2);
@@ -172,7 +185,35 @@ statement:
 		    pop_loop_name();
 		    pop_loop_name();
 		}
+	| tFOR '(' tID ',' tID ':' expr ')'
+		{
+		    push_loop_name($3);
+		    push_loop_name($5);
+		}
+	  statements tENDFOR
+		{
+		    $$ = alloc_stmt(STMT_LIST);
+		    $$->s.list.id = find_id($3);
+		    $$->s.list.index = find_id($5);
+		    $$->s.list.expr = $7;
+		    $$->s.list.body = $10;
+		    pop_loop_name();
+		    pop_loop_name();
+		}
 	| tFOR tID tIN '[' expr tTO expr ']'
+		{
+		    push_loop_name($2);
+		}
+	  statements tENDFOR
+		{
+		    $$ = alloc_stmt(STMT_RANGE);
+		    $$->s.range.id = find_id($2);
+		    $$->s.range.from = $5;
+		    $$->s.range.to = $7;
+		    $$->s.range.body = $10;
+		    pop_loop_name();
+		}
+	| tFOR tID tIN '[' expr ':' expr ']'
 		{
 		    push_loop_name($2);
 		}
