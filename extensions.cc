@@ -931,6 +931,38 @@ bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(newList);
 }
 
+static package bf_bit_or(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    int a = arglist.v.list[1].v.num;
+    int b = arglist.v.list[2].v.num;
+    free_var(arglist);
+
+    return make_var_pack(Var::new_int(a|b));
+}
+static package bf_bit_and(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    int a = arglist.v.list[1].v.num;
+    int b = arglist.v.list[2].v.num;
+    free_var(arglist);
+
+    return make_var_pack(Var::new_int(a&b));
+}
+static package bf_bit_xor(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    int a = arglist.v.list[1].v.num;
+    int b = arglist.v.list[2].v.num;
+    free_var(arglist);
+
+    return make_var_pack(Var::new_int(a^b));
+}
+static package bf_bit_not(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    int a = arglist.v.list[1].v.num;
+    free_var(arglist);
+
+    return make_var_pack(Var::new_int(~a));
+}
+
     void
 register_extensions()
 {
@@ -957,6 +989,10 @@ register_extensions()
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_INT);
     register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
+    register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
+    register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
+    register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
+    register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
