@@ -1,3 +1,5 @@
+This is my fork of ToastStunt. I will kieep it updated with their mainline and submit pull requests for features that might be useful, but I've also added extra builtins that may or may not be of any use to anyone. You can see the difference by comparing the two feature lists.
+
 See `README.stunt' for general information on Stunt.
 
 ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [ChatMud](https://www.chatmud.com/). It has a number of features of dubious usefulness that have been tacked on over the past decade, a semi-complete list of which can be found below:
@@ -29,6 +31,9 @@ ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [Cha
 - ANSI:
     - Parse_ansi() (parses color tags into their ANSI equivalents)
     - remove_ansi() (strips ANSI tags from strings)
+
+- syntax:
+    - Added syntax sugar for loops; for foo in (bar) becomes for (foo:bar), for v,k in (map) becomes for (v,k:map). Of course, the other versions work as well; these just feel easier to use.
 
 - Telnet:
     - Capture IAC commands and pass them to listener:do_out_of_band_command() for the database to handle.
@@ -62,6 +67,7 @@ ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [Cha
     - intersection, union, diff (set operations, taken and modified from Goblin's extension pack)
     - assoc, iassoc, slice (taken from Martian's list extensions).
     - set_merge (merges two lists together using setadd)
+    - bit_or, bit_and, bit_xor, bit_not (perform bit operations on integers)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name
