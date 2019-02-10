@@ -272,7 +272,7 @@ pull_input(nhandle * h)
     if ((count = read(h->rfd, buffer, sizeof(buffer))) > 0) {
         if (h->binary) {
             stream_add_raw_bytes_to_binary(s, buffer, count);
-            server_receive_line(h->shandle, reset_stream(s), NULL);
+            server_receive_line(h->shandle, reset_stream(s), false);
             h->last_input_was_CR = 0;
         } else {
             Stream *oob = new_stream(3);
@@ -296,7 +296,7 @@ pull_input(nhandle * h)
                         while (cmd != TN_SE && ptr + telnet_counter <= end)
                             cmd = *(ptr + telnet_counter++);
 
-                            if (cmd == TN_SE) {
+                        if (cmd == TN_SE) {
                             // We got a complete option sequence.
                             stream_add_raw_bytes_to_binary(oob, ptr, telnet_counter);
                             ptr += --telnet_counter;
@@ -692,9 +692,9 @@ network_set_client_echo(network_handle nh, int is_on)
 
     h->client_echo = is_on;
     if (is_on)
-	telnet_cmd[1] = TN_WONT;
+	telnet_cmd[1] = (char)TN_WONT;
     else
-	telnet_cmd[1] = TN_WILL;
+	telnet_cmd[1] = (char)TN_WILL;
     enqueue_output(nh, telnet_cmd, 3, 0, 1);
 }
 

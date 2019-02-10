@@ -202,10 +202,8 @@ disassemble(Program * prog, Printer p, void *data)
     Bytecodes bc;
     const char *ptr;
     const char **names = prog->var_names;
-    unsigned tmp, num_names = prog->num_var_names;
-#   define NAMES(i)	(tmp = i,					\
-			 tmp < num_names ? names[tmp]			\
-					 : "*** Unknown variable ***")
+    unsigned num_names = prog->num_var_names;
+#   define NAMES(i) (i < num_names ? names[i] : "*** Unknown variable ***")
     Var *literals = prog->literals;
 
     initialize_tables();
@@ -370,10 +368,10 @@ disassemble(Program * prog, Printer p, void *data)
 			v = literals[ADD_BYTES(bc.numbytes_literal)];
 			switch (v.type) {
 			case TYPE_OBJ:
-			    stream_printf(insn, " #%d", v.v.obj);
+			    stream_printf(insn, " #%" PRIdN, v.v.obj);
 			    break;
 			case TYPE_INT:
-			    stream_printf(insn, " %d", v.v.num);
+			    stream_printf(insn, " %" PRIdN, v.v.num);
 			    break;
             case TYPE_FLOAT:
                 stream_add_char(insn, ' ');

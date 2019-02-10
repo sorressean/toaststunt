@@ -449,13 +449,27 @@
 #define USE_ANCESTOR_CACHE
 
 /******************************************************************************
- * Typically, FIO will drop any character that doesn't have a graphical representation.
- * This process, however, is very slow. If you're positive that your text files are all
- * safe, you can disable this option to speed up text file reads at the expense of
- * theoretical safety. Newlines are still stripped from the ends of lines.
+ * Typically, in text mode, FIO will drop any character that doesn't have a
+ * graphical representation. This process, however, can be quite slow.
+ * If you're positive that your text files are all safe, you can disable this
+ * option to speed up text file reads at the expense of theoretical safety.
+ * Newlines are still stripped from the ends of lines.
+ * NOTE: Files containing a mixture of text and binary data will NOT have the
+ *       binary data stripped in text mode. This breaks a fundamental assumption
+ *       about files in text mode and, as such, unit tests will fail. Only enable
+ *       this option if you're sure you don't mind this.
  ******************************************************************************
 */
-#define UNSAFE_FIO
+/* #define UNSAFE_FIO */
+
+/******************************************************************************
+ * The server supports 64-bit integers. If you don't want the added memory usage
+ * and don't need the larger integers, you can disable that here. NOTE: Disabling
+ * this option and loading a database that has saved 64-bit integers will probably
+ * not end well.
+ ******************************************************************************
+*/
+/* #define ONLY_32_BITS */
 
 /*****************************************************************************
  ********** You shouldn't need to change anything below this point. **********

@@ -654,12 +654,12 @@ start_programming(tqueue * tq, char *argstr)
 	tq->program_object = db_verb_definer(h).v.obj;
 	tq->program_verb = str_dup(vname);
 #ifdef LOG_CODE_CHANGES
-    oklog("CODE_CHANGE: %s (#%d) set verb #%d:%s via .PROGRAM\n", db_object_name(tq->player), tq->player, tq->program_object, tq->program_verb);
+    oklog("CODE_CHANGE: %s (#%" PRIdN ") set verb #%" PRIdN ":%s via .PROGRAM\n", db_object_name(tq->player), tq->player, tq->program_object, tq->program_verb);
 #endif
     }
 }
 
-struct state {
+struct task_state {
     Objid player;
     int nerrors;
     char *input;
@@ -668,7 +668,7 @@ struct state {
 static void
 my_error(void *data, const char *msg)
 {
-    struct state *s = (state *)data;
+    struct task_state *s = (task_state *)data;
 
     notify(s->player, msg);
     s->nerrors++;
@@ -677,7 +677,7 @@ my_error(void *data, const char *msg)
 static int
 my_getc(void *data)
 {
-    struct state *s = (state *)data;
+    struct task_state *s = (task_state *)data;
 
     if (*(s->input) != '\0')
 	return *(s->input++);
@@ -706,7 +706,7 @@ end_programming(tqueue * tq)
 	if (!h.ptr)
 	    notify(player, "That verb appears to have disappeared ...");
 	else {
-	    struct state s;
+	    struct task_state s;
 	    Program *program;
 	    char buf[30];
 
@@ -1338,7 +1338,7 @@ enqueue_suspended_task(vm the_vm, void *data)
 
 	when = double_to_start_tv(after_seconds);
     } else {
-	when.tv_sec = INT32_MAX;
+	when.tv_sec = INTNUM_MAX;
 	when.tv_usec = 0;
     }
 
