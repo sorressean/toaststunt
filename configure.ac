@@ -253,7 +253,7 @@ dnl ***************************************************************************
  dnl ***************************************************************************
     AC_CHECK_HEADER([argon2.h], [found_argon2=yes], [found_argon2=no])
     if test "$found_argon2" != "yes" ; then
-        AC_MSG_ERROR([Argon2 could not be found.])
+        AC_MSG_WARN([Argon2 could not be found.])
     else
         AC_DEFINE(HAS_ARGON2)
         ELIBS="${ELIBS} -largon2"
@@ -262,7 +262,7 @@ dnl ***************************************************************************
  dnl ***************************************************************************
     AC_CHECK_HEADER([aspell.h], [found_aspell=yes], [found_aspell=no])
     if test "$found_aspell" != "yes" ; then
-        AC_MSG_ERROR([Aspell could not be found.])
+        AC_MSG_WARN([Aspell could not be found.])
     else
         AC_DEFINE(HAS_ASPELL)
         ELIBS="${ELIBS} -laspell"
@@ -276,6 +276,15 @@ dnl ***************************************************************************
 		ELIBS="${ELIBS} `$PCRE_CONFIG --libs`"
 		CFLAGS+=" `$PCRE_CONFIG --cflags`"
 	fi
+
+ dnl ***************************************************************************
+    AC_CHECK_HEADER([nettle/md5.h], [found_nettle=yes], [found_nettle=no])
+    if test "$found_nettle" != "yes" ; then
+        AC_MSG_ERROR([Nettle could not be found.])
+    else
+        AC_DEFINE(HAS_NETTLE)
+        ELIBS="${ELIBS} -lnettle"
+    fi
 
 dnl ***************************************************************************
 echo checking which MOO networking configurations are likely to work...

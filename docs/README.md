@@ -1,17 +1,29 @@
-This is my fork of ToastStunt. I will kieep it updated with their mainline and submit pull requests for features that might be useful, but I've also added extra builtins that may or may not be of any use to anyone. You can see the difference by comparing the two feature lists.
+This is my fork of ToastStunt. I will keep it updated with their mainline and submit pull requests for features that might be useful, but I've also added extra builtins that may or may not be of any use to anyone. You can see the difference by comparing the two feature lists.
 
 See `README.stunt' for general information on Stunt.
+# ToastStunt
 
-ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [ChatMud](https://www.chatmud.com/). It has a number of features of dubious usefulness that have been tacked on over the past decade, a semi-complete list of which can be found below:
+ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of features that were found useful while developing [Miriani](https://www.toastsoft.net) and [ChatMud](https://www.chatmud.com/), a mostly complete list of which can be found below.
+
+* [Features](#features)
+* [Build Instructions](#build-instructions)
+  * [Debian/Ubuntu](#debian-ubuntu)
+  * [REL/CentOS](#rel-centos)
+  * [Gentoo](##gentoo)
+* [Function Documentation](https://github.com/lisdude/toaststunt-documentation)
+* [Support and Development](#support-and-development)
+* [Stunt Information](README.stunt)
+
+## Features
 
 - SQLite [functions: sqlite_open(), sqlite_close(), sqlite_handle(), sqlite_info(), sqlite_query(), sqlite_execute()]
 - Perl Compatible Regular Expressions (PCRE) [functions: pcre_match(), pcre_replace]
 - Simplex noise (implemented but never actually tested / used)
 - [Argon2id hashing](https://github.com/P-H-C/phc-winner-argon2) [functions: argon2(), argon2_verify()]
-- 32-bit and 64-bit versions
+- 32-bit and 64-bit versions ($maxint and $minint set automatically)
 
 - Waifs
-    - Call :recycle on waifs when they're destroyed
+    - Call :pre_destroy on waifs when they're destroyed
     - A WAIF type (so typeof(some_waif) == WAIF)
     - Waif dict patch (so waif[x] and waif[x] = y will call the :_index and :_set_index verbs on the waif)
     - '-w' command line option to convert existing databases with a different waif type to the new waif type
@@ -86,3 +98,44 @@ ToastStunt is the server that runs [Miriani](https://www.toastsoft.net) and [Cha
     - Rename recycle() to destroy() (also call pre_destroy rather than recycle verbs)
     - New argument to notify() to suppress the newline
     - Support object lists in isa() as well as an optional third argument to return the matching parent rather than simply true or false.
+
+## Build Instructions
+### **Debian/Ubuntu**
+```bash
+apt install build-essential bison gperf autoconf libsqlite3-dev libaspell-dev libpcre3-dev nettle-dev g++
+autoconf
+./configure
+make
+```
+
+### **REL/CentOS**
+```bash
+yum group install -y "Development Tools"
+yum install -y sqlite-devel pcre-devel aspell-devel nettle-devel gperf   centos-release-scl
+yum install -y devtoolset-7
+scl enable devtoolset-7 bash
+autoconf
+./configure
+make
+exit
+```
+
+### **Gentoo**
+```bash
+emerge dev-db/sqlite app-text/aspell app-crypt/argon2
+autoconf
+./configure
+make
+```
+
+### **Notes**
+Many distributions do not include [Libargon2](https://github.com/P-H-C/phc-winner-argon2) which is required for Argon2id password hashing. As such, it has been included as a Git submodule in this repository. To build it yourself, follow these steps:
+
+1. Inside of the ToastStunt repository, checkout all available submodules: `git submodule update --init`
+2. `cd dependencies/phc-winner-argon2`
+3. Build the library: `make`
+4. Install it on your system: `make install PREFIX=/usr`
+
+## Support and Development
+
+Realtime support and collaborative discussion for ToastStunt primarily takes place on the 'toaststunt' channel on ChatMUD. Barring this, the [Miriani Message Boards](https://board.toastsoft.net/) are another good resource for assistance.

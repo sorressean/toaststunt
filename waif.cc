@@ -37,7 +37,7 @@
 
 static unsigned long waif_count = 0;
 static std::unordered_map<Objid, unsigned int> waif_class_count;
-std::unordered_map<Waif *, bool> recycled_waifs;
+std::unordered_map<Waif *, bool> destroyed_waifs;
 
 #define PROP_MAPPED(Mmap, Mbit)	((Mmap)[(Mbit) / 32] & (1 << ((Mbit) % 32)))
 #define MAP_PROP(Mmap, Mbit) (Mmap)[(Mbit) / 32] |= 1 << ((Mbit) % 32)
@@ -386,8 +386,9 @@ update_waif_propdefs(Waif *waif)
 	static Var *xfer;
 	static int xfer_sz;
 
-	/* If the class has been recycled we're invalid!  Destroy the
+	/* If the class has been destroyed we're invalid!  Destroy the
 	 * properties and release our reference to the old propvals.
+     * Mark the waif invalid so that future renumbers() won't hose us.
 	 */
 	if (!classp) {
 		cnt = count_waif_propvals(waif);
@@ -399,6 +400,7 @@ update_waif_propdefs(Waif *waif)
 			myfree(waif->propvals, M_WAIF_XTRA);
 			waif->propvals = NULL;
 		}
+        waif->_class = NOTHING;
 		return;
 	}
 
@@ -584,11 +586,13 @@ dup_waif(Waif *waif)
 static package
 bf_new_waif(Var arglist, Byte next, void *vdata, Objid progr)
 {
-	free_var(arglist);
+    free_var(arglist);
 
-	if (!is_valid(caller()))
-		return make_error_pack(E_INVIND);
-	return make_var_pack(new_waif(caller().v.obj, progr));
+    if (!is_valid(caller()))
+        return make_error_pack(E_INVIND);
+    else if (caller().type == TYPE_ANON)
+        return make_error_pack(E_INVARG);
+    return make_var_pack(new_waif(caller().v.obj, progr));
 }
 
 static package
@@ -598,7 +602,7 @@ bf_waif_stats(Var arglist, Byte next, void *vdata, Objid progr)
 
     Var r = new_map();
     r = mapinsert(r, str_dup_to_var("total"), Var::new_int(waif_count));
-    r = mapinsert(r, str_dup_to_var("pending_recycle"), Var::new_int(recycled_waifs.size()));
+    r = mapinsert(r, str_dup_to_var("pending_destroy"), Var::new_int(destroyed_waifs.size()));
 
     for (auto& x : waif_class_count) {
         r = mapinsert(r, Var::new_obj(x.first), Var::new_int(x.second));
@@ -652,6 +656,9 @@ waif_get_prop(Waif *w, const char *name, Var *prop, Objid progr)
 		prop->v.obj = w->_class;
 		return E_NONE;
     } else if (!strcasecmp(name, "wizard")) {
+        *prop = zero;
+        return E_NONE;
+    } else if (!strcasecmp(name, "programmer")) {
         *prop = zero;
         return E_NONE;
 	} else if (!valid(w->_class))
@@ -722,6 +729,8 @@ waif_put_prop(Waif *w, const char *name, Var val, Objid progr)
 		 */
 		return E_PERM;
     else if (!strcasecmp(name, "wizard"))
+		return E_PERM;
+    else if (!strcasecmp(name, "programmer"))
 		return E_PERM;
 	else if (!valid(w->_class))
 		return E_INVIND;
