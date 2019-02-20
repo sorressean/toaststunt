@@ -83,6 +83,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - assoc, iassoc, slice (taken from Martian's list extensions).
     - set_merge (merges two lists together using setadd)
     - bit_or, bit_and, bit_xor, bit_not (perform bit operations on integers)
+    - list_reverse (reverse a list; more performant than goblin's widely used extension)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name
