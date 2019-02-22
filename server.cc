@@ -768,6 +768,7 @@ main_loop(void)
 
     applog(LOG_WARNING, "SHUTDOWN: %s\n", shutdown_message.str().c_str());
     send_shutdown_message(shutdown_message.str().c_str());
+    run_server_task(-1, Var::new_obj(SYSTEM_OBJECT), "server_stopped", new_list(0), "", 0);
 }
 
 static shandle *

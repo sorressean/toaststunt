@@ -22,6 +22,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 - Simplex noise (implemented but never actually tested / used)
 - [Argon2id hashing](https://github.com/P-H-C/phc-winner-argon2) [functions: argon2(), argon2_verify()]
 - 32-bit and 64-bit versions ($maxint and $minint set automatically)
+- #0:server_stopped support (called on shutdown or when a signal is received)
 
 - Waifs
     - Call :pre_destroy on waifs when they're destroyed
