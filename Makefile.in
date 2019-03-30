@@ -16,12 +16,12 @@
 CC = @CC@
 CXX = @CXX@
 CCAS = @CCAS@
-LDFLAGS=@LDFLAGS@
+LDFLAGS=@LDFLAGS@ -Wl,-z,noexecheap,-z,noexecstack,-z,now,-z,relro
 LIBRARIES = @LIBS@
 ELIBS=@ELIBS@
 YACC = @YACC@
 
-CFLAGS = -Wall -march=native -O3 -Wno-sign-compare -Wno-switch @CFLAGS@
+CFLAGS = -Wall -march=native -Ofast -Wall @CFLAGS@ -fstack-protector-all
 #CFLAGS = -g -Wall -march=native -O3 -ggdb
 CXXFLAGS = $(CFLAGS) @CXXFLAGS@
 # If you're using GCC, you may prefer:

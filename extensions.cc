@@ -609,6 +609,7 @@ static void do_deep_contents(set<Objid> &objids, Var &branch, Var& parent, bool 
             objids.insert(branch.v.obj);
         }
 
+
     for (int i = 1; i <= branch_obj->contents.v.list[0].v.num; ++i)
         {
             do_deep_contents(objids, branch_obj->contents.v.list[i], parent, perform_isa);
@@ -655,7 +656,7 @@ bf_deep_contents(Var arglist, Byte next, void *vdata, Objid progr)
     do_deep_contents(objids, arglist.v.list[1], parent, perform_isa);
     objids.erase(what);
     auto set_size = objids.size();
-    Var array = new_list(set_size);
+    Var array = new_list(set_size+1);
     int index = 1;
     for (auto it: objids)
         {
