@@ -585,7 +585,7 @@ bf_remove_ansi(Var arglist, Byte next, void *vdata, Objid progr)
 }
 //==============================================================
 
-static void do_deep_contents(set<Objid> &objids, Var &branch, Var& parent, bool perform_isa=false)
+static void do_deep_contents(set<Objid> &objids, Var branch, Var parent, bool perform_isa=false)
 {
     if (branch.type != TYPE_OBJ)
         return;
