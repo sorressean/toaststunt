@@ -690,13 +690,10 @@ bf_deep_contents(Var arglist, Byte next, void *vdata, Objid progr)
     set<Objid> objids;
     do_deep_contents(objids, arglist.v.list[1], parent, perform_isa);
     objids.erase(what);
-    auto set_size = objids.size();
-    Var array = new_list(set_size+1);
-    int index = 1;
+    Var array = new_list(0);
     for (auto it: objids)
         {
-            array = listset(array, Var::new_obj(it), index);
-            ++index;
+            array = listappend(array, Var::new_obj(it));
         }
 
     free_var(arglist);
@@ -722,9 +719,7 @@ static package bf_contains_key(Var arglist, Byte next, void *vdata, Objid progr)
     const int result = mapforeach(arglist.v.list[1], do_contains_key, &arglist.v.list[2]);
     free_var(arglist);
 
-    Var ret;
-    ret.type=TYPE_INT;
-    ret.v.num = result;
+    Var ret = Var::new_int(result);
     return make_var_pack(ret);
 }
 
@@ -738,9 +733,7 @@ static package bf_contains_value(Var arglist, Byte next, void *vdata, Objid prog
     const int result = mapforeach(arglist.v.list[1], do_contains_value, &arglist.v.list[2]);
     free_var(arglist);
 
-    Var ret;
-    ret.type=TYPE_INT;
-    ret.v.num = result;
+    Var ret = Var::new_int(result);
     return make_var_pack(ret);
 }
 
