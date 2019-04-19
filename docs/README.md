@@ -66,6 +66,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - UNSAFE_FIO (skip character by character line verification, trading off potential safety for speed)
     - LOG_EVALS (add an entry to the server log any time eval is called)
     - ONLY_32_BITS (switch from 64-bit integers back to 32-bit)
+    - MAX_LINE_BYTES (unceremoniously close connections that send lines exceeding this value to prevent memory allocation panics)
 
 - Additional builtins:
     - frandom (random floats)
@@ -75,7 +76,8 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - ftime (precise time, including an argument for monotonic timing)
     - locate_by_name (quickly locate objects by their .name property)
     - usage (returns {load averages}, user time, system time, page reclaims, page faults, block input ops, block output ops, voluntary context switches, involuntary context switches, signals received)
-    - explode (serverified version of the LambdaCore verb)
+    - explode (serverified version of the LambdaCore verb on $string_utils)
+    - slice (serverified version of the LambdaCore verb on $list_utils)
     - occupants (return a list of objects of parent parent, optionally with a player flag check)
     - spellcheck (uses Aspell to check spelling)
     - locations (recursive location function)
