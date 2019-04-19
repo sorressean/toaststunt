@@ -359,28 +359,18 @@ bf_explode(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(r);
 }
 
-static void InitListToZero(Var list)
-{
-    const Var z = Var::new_int(0);
-
-    for(int i=1; i <= list.v.list[0].v.num; ++i)
-        list.v.list[i]=z;
-}
-
 /* Return all items of sublists at index */
 static package
 bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    const int length = arglist.v.list[0].v.num;
+    const int length = arglist.v.list[1].v.list[0].v.num;
     if(length < 0)
         {
             free_var(arglist);
             return make_error_pack(E_INVARG);
         }
 
-    Var ret = new_list(length);
-    InitListToZero(ret);
-
+    Var ret = new_list(0);
     int c = 0;
     if(arglist.v.list[0].v.num == 2)
         c = arglist.v.list[2].v.num;
@@ -397,7 +387,7 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
             }
         else
             {
-                ret.v.list[i] = var_dup(list.v.list[i].v.list[c]);
+                ret = listappend(ret, list.v.list[i].v.list[c]);
             }
 
     free_var(arglist);
@@ -889,14 +879,6 @@ static int list_iassoc(Var& vtarget, Var& vlist, const int vindex)
     return 0;
 }
 
-static void InitListToZero(Var list)
-{
-    const Var z = Var::new_int(0);
-
-    for(int i=1; i <= list.v.list[0].v.num; ++i)
-        list.v.list[i]=z;
-}
-
 static package
 bf_iassoc(Var arglist, Byte next, void *vdata, Objid progr)
 {
@@ -935,42 +917,6 @@ bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
 
     free_var(arglist);
     return make_var_pack(r);
-}
-
-static package
-bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    const int length = arglist.v.list[0].v.num;
-    if(length < 0)
-        {
-            free_var(arglist);
-            return make_error_pack(E_INVARG);
-        }
-
-    Var ret = new_list(length);
-    InitListToZero(ret);
-
-    int c = 0;
-    if(arglist.v.list[0].v.num == 2)
-        c = arglist.v.list[2].v.num;
-    else
-        c = 1;
-
-    const Var list=arglist.v.list[1];
-    for(int i = 1; i <= length; ++i)
-        if( list.v.list[i].type != TYPE_LIST || list.v.list[i].v.list[0].v.num < c )
-            {
-                free_var(ret);
-                free_var(arglist);
-                return make_error_pack(E_INVARG);
-            }
-        else
-            {
-                ret.v.list[i] = var_dup(list.v.list[i].v.list[c]);
-            }
-
-    free_var(arglist);
-    return make_var_pack(ret);
 }
 
 /**
