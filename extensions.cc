@@ -875,12 +875,11 @@ bf_list_reverse(Var arglist, Byte next, void *vdata, Objid progr)
         return make_error_pack(E_RANGE);
     }
 
-    Var reversed = new_list(length);
-    int end = length;
-    for (int i = 1; i <= length; ++i)
+    Var reversed = new_list(0);
+    for (int i = length; i >= 1; --i)
     {
-        reversed = listset(reversed, arglist.v.list[1].v.list[i], end);
-        --end;
+        Var element = var_ref(arglist.v.list[1].v.list[i]);
+        reversed = listappend(reversed, element);
     }
 
     free_var(arglist);
