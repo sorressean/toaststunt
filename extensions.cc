@@ -387,8 +387,7 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
             }
         else
             {
-                Var element = var_ref(list.v.list[i].v.list[c]);
-                ret = listappend(ret, element);
+                ret = listappend(ret, list.v.list[i].v.list[c]);
             }
 
     free_var(arglist);
