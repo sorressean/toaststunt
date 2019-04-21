@@ -841,79 +841,6 @@ bf_union(Var arglist, Byte next, void *vdata, Objid progr)
 }
 
 /**
-* The following extensions are taken from martian's list extensions and modified.
-*/
-static Var list_assoc(Var& vtarget, Var& vlist, const int vindex)
-{
-    for (int i = 1; i <= vlist.v.list[0].v.num; ++i)
-        {
-            if (vlist.v.list[i].type == TYPE_LIST &&
-                    vlist.v.list[i].v.list[0].v.num >= vindex &&
-                    equality(vlist.v.list[i].v.list[vindex], vtarget, 0))
-                {
-                    return var_dup(vlist.v.list[i]);
-                }
-        }
-
-    return new_list(0);
-}
-
-static int list_iassoc(Var& vtarget, Var& vlist, const int vindex)
-{
-    for (int i = 1; i <= vlist.v.list[0].v.num; ++i)
-        {
-            if (vlist.v.list[i].type == TYPE_LIST &&
-                    vlist.v.list[i].v.list[0].v.num >= vindex &&
-                    equality(vlist.v.list[i].v.list[vindex], vtarget, 0))
-                {
-                    return i;
-                }
-        }
-
-    return 0;
-}
-
-static package
-bf_iassoc(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    /* (ANY, LIST[, INT]) */
-    int index = 1;
-    if (arglist.v.list[0].v.num == 3)
-        index = arglist.v.list[3].v.num;
-
-    if (index < 1)
-        {
-            free_var(arglist);
-            return make_error_pack(E_RANGE);
-        }
-
-    Var r = Var::new_int(list_iassoc(arglist.v.list[1], arglist.v.list[2], index));
-
-    free_var(arglist);
-    return make_var_pack(r);
-}
-
-static package
-bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    /* (ANY, LIST[, INT]) */
-    int index = 1;
-    if (arglist.v.list[0].v.num == 3)
-        index = arglist.v.list[3].v.num;
-
-    if (index < 1)
-        {
-            free_var(arglist);
-            return make_error_pack(E_RANGE);
-        }
-
-    Var r = list_assoc(arglist.v.list[1], arglist.v.list[2], index);
-
-    free_var(arglist);
-    return make_var_pack(r);
-}
-
-/**
 * The following builtin is made to help combining of sets.
 * It replaces the following moo code (assuming s and t are both sets):
 * for i in (s)
@@ -928,7 +855,11 @@ bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
 //now add the second one.
     for (int index = 1; index <= arglist.v.list[2].v.list[0].v.num; ++index)
         {
-            newList = setadd(newList, arglist.v.list[2].v.list[index]);
+            if (!ismember(arglist.v.list[2].v.list[index], newList, 0))
+            {
+                Var element = var_ref(arglist.v.list[2].v.list[index]);
+                newList = listappend(newList, element);
+            }
         }
     free_var(arglist);
     return make_var_pack(newList);
@@ -1011,8 +942,6 @@ register_extensions()
     register_function("intersection", 1, -1, bf_intersection, TYPE_LIST);
     register_function("difference", 1, -1, bf_diff, TYPE_LIST);
     register_function("union", 1, -1, bf_union, TYPE_LIST);
-    register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
-    register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_INT);
     register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
     register_function("listreverse", 1, 1, bf_list_reverse, TYPE_LIST);
