@@ -615,64 +615,6 @@ bf_remove_ansi(Var arglist, Byte next, void *vdata, Objid progr)
 }
 //==============================================================
 
-static Var
-list_assoc(Var vtarget, Var vlist, const int vindex)
-{
-    const int length = vlist.v.list[0].v.num;
-  for (int i = 1; i <= length; ++i) {
-    if (vlist.v.list[i].type == TYPE_LIST &&
-        vlist.v.list[i].v.list[0].v.num >= vindex &&
-        equality(vlist.v.list[i].v.list[vindex], vtarget, 0)) {
-      return var_dup(vlist.v.list[i]);
-    }
-  }
-  return new_list(0);
-}
-
-static int
-list_iassoc(Var vtarget, Var vlist, const int vindex)
-{
-    const int length = vlist.v.list[0].v.num;
-  for (int i = 1; i <= length; ++i) {
-    if (vlist.v.list[i].type == TYPE_LIST &&
-        vlist.v.list[i].v.list[0].v.num >= vindex &&
-        equality(vlist.v.list[i].v.list[vindex], vtarget, 0)) {
-      return i;
-    }
-  }
-  return 0;
-}
-
-static package
-bf_iassoc(Var arglist, Byte next, void *vdata, Objid progr)
-{ /* (ANY, LIST[, INT]) */
-  const int index = (arglist.v.list[0].v.num == 3?arglist.v.list[3].v.num : 1);
-  if (index < 1) {
-    free_var(arglist);
-    return make_error_pack(E_RANGE);
-  }
-
-  Var r = Var::new_int(list_iassoc(arglist.v.list[1], arglist.v.list[2], index));
-
-  free_var(arglist);
-  return make_var_pack(r);
-} /* end bf_listiassoc() */
-
-static package
-bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
-{ /* (ANY, LIST[, INT]) */
-  const int index = (arglist.v.list[0].v.num == 3 ? arglist.v.list[3].v.num : 1);
-  if (index < 1) {
-    free_var(arglist);
-    return make_error_pack(E_RANGE);
-  }
-
-  Var r = list_assoc(arglist.v.list[1], arglist.v.list[2], index);
-
-  free_var(arglist);
-  return make_var_pack(r);
-}
-
     void
 register_extensions()
 {
@@ -693,6 +635,4 @@ register_extensions()
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
-    register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
-    register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
 }
