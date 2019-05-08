@@ -9,7 +9,8 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 * [Build Instructions](#build-instructions)
   * [Debian/Ubuntu](#debian-ubuntu)
   * [REL/CentOS](#rel-centos)
-  * [Gentoo](##gentoo)
+  * [Gentoo](#gentoo)
+  * [macOS](#macos)
 * [Function Documentation](https://github.com/lisdude/toaststunt-documentation)
 * [ToastCore](https://github.com/lisdude/toastcore)
 * [Support and Development](#support-and-development)
@@ -105,8 +106,9 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - Move #0.dump_interval to $server_options.dump_interval
     - Rename recycle() to destroy() (also call pre_destroy rather than recycle verbs)
     - New argument to notify() to suppress the newline
-    - Support object lists in isa() as well as an optional third argument to return the matching parent rather than simply true or false.
+    - Support object lists in isa() as well as an optional third argument to return the matching parent rather than simply true or false
     - New argument to move() to effectively listinsert() the object into the destination's .contents
+    - New argument to is_member() for controlling case sensitivity of equality comparisons. No third argument or a true value results in standard functionality; a false value as the third argument results in case not mattering at all
 
 ## Build Instructions
 ### **Debian/Ubuntu**
@@ -137,6 +139,17 @@ autoconf
 make
 ```
 
+### **macOS**
+Installing dependencies requires [Homebrew](https://brew.sh/).
+
+Follow the instructions in the notes section below to compile and install Argon2. **NOTE**: In the last step, the install prefix should be changed to `/usr/local`
+
+```bash
+brew install autoconf pcre aspell nettle
+./configure
+make
+```
+
 ### **Notes**
 Many distributions do not include [Libargon2](https://github.com/P-H-C/phc-winner-argon2) which is required for Argon2id password hashing. As such, it has been included as a Git submodule in this repository. To build it yourself, follow these steps:
 
@@ -144,6 +157,8 @@ Many distributions do not include [Libargon2](https://github.com/P-H-C/phc-winne
 2. `cd dependencies/phc-winner-argon2`
 3. Build the library: `make`
 4. Install it on your system: `make install PREFIX=/usr`
+
+**NOTE**: macOS users should instead use `make install PREFIX=/usr/local` in step 4.
 
 ## Support and Development
 

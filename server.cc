@@ -235,7 +235,7 @@ output_to_log(const char *line)
 }
 
 void
-panic(const char *message)
+panic_moo(const char *message)
 {
     static int in_panic = 0;
 
@@ -287,7 +287,7 @@ panic_signal(int sig)
     char message[100];
 
     sprintf(message, "Caught signal %d", sig);
-    panic(message);
+    panic_moo(message);
 }
 
 static void
@@ -1156,14 +1156,14 @@ do_script_file(const char *path)
     std::string line;
 
     if (!file.is_open()) {
-	panic(strerror(errno));
+	panic_moo(strerror(errno));
     }
     while (std::getline(file, line)) {
 	str = str_dup_to_var(raw_bytes_to_clean(line.c_str(), line.size()));
 	code = listappend(code, str);
     }
     if (errno) {
-	panic(strerror(errno));
+	panic_moo(strerror(errno));
     }
 
     run_do_start_script(code);
@@ -1405,7 +1405,7 @@ player_connected_silent(Objid old_id, Objid new_id)
     shandle *new_h = find_shandle(old_id);
 
     if (!new_h)
-	panic("Non-existent shandle connected");
+	panic_moo("Non-existent shandle connected");
 
     new_h->player = new_id;
     new_h->connection_time = time(0);
@@ -1456,7 +1456,7 @@ player_connected(Objid old_id, Objid new_id, int is_newly_created)
     shandle *new_h = find_shandle(old_id);
 
     if (!new_h)
-	panic("Non-existent shandle connected");
+	panic_moo("Non-existent shandle connected");
 
     new_h->player = new_id;
     new_h->connection_time = time(0);
