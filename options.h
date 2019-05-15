@@ -444,7 +444,7 @@
  * Enable the obsolete in-server ownership quota management.
  ******************************************************************************
 */
-#define OWNERSHIP_QUOTA
+/*#define OWNERSHIP_QUOTA*/
 
 /******************************************************************************
  * Cache ancestor lists until a parent changes. This is a quick and dirty solution
@@ -475,7 +475,7 @@
  * (The number defined is how many tasks will get saved.)
  ******************************************************************************
 */
-/* #define SAVE_FINISHED_TASKS 15 */
+#define SAVE_FINISHED_TASKS 100
 
 /******************************************************************************
  * The server supports 64-bit integers. If you don't want the added memory usage
