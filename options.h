@@ -130,6 +130,8 @@
 #define DEFAULT_FG_SECONDS	5
 #define DEFAULT_BG_SECONDS	3
 
+#define DEFAULT_LAG_THRESHOLD 5.0
+
 /******************************************************************************
  * NETWORK_PROTOCOL must be defined as one of the following:
  *
@@ -442,7 +444,7 @@
  * Enable the obsolete in-server ownership quota management.
  ******************************************************************************
 */
-/* #define OWNERSHIP_QUOTA */
+#define OWNERSHIP_QUOTA
 
 /******************************************************************************
  * Cache ancestor lists until a parent changes. This is a quick and dirty solution
@@ -465,6 +467,15 @@
  ******************************************************************************
 */
 /* #define UNSAFE_FIO */
+
+/******************************************************************************
+ * When functions leave the interpreter, the server can store certain information
+ * about that function's execution and total time spent. This can be useful for
+ * debugging server-locking functions at the expense of time spent storing data.
+ * (The number defined is how many tasks will get saved.)
+ ******************************************************************************
+*/
+/* #define SAVE_FINISHED_TASKS 15 */
 
 /******************************************************************************
  * The server supports 64-bit integers. If you don't want the added memory usage
