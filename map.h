@@ -40,7 +40,7 @@ extern int mapequal(const Var& lhs, const Var& rhs, const int case_matters);
 extern Num maplength(const Var& map);
 extern int mapempty(const Var& map);
 
-extern int map_sizeof(const rbtree *tree);
+extern int map_sizeof(rbtree *tree);
 
 extern int mapfirst(Var map, var_pair *pair);
 extern int maplast(Var map, var_pair *pair);

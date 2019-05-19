@@ -641,7 +641,7 @@ map_dup(Var map)
 
 /* called from utils.c */
 int
-map_sizeof(const rbtree *tree)
+map_sizeof(rbtree *tree)
 {
     rbtrav trav;
     const rbnode *pnode;
