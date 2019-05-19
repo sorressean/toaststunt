@@ -641,7 +641,7 @@ map_dup(Var map)
 
 /* called from utils.c */
 int
-map_sizeof(rbtree *tree)
+map_sizeof(const rbtree *tree)
 {
     rbtrav trav;
     const rbnode *pnode;
@@ -744,7 +744,7 @@ mapseek(Var map, Var key, Var *iter, int case_matters)
 }
 
 int
-mapequal(Var lhs, Var rhs, int case_matters)
+mapequal(const Var& lhs, const Var& rhs, const int case_matters)
 {
     rbtrav trav_lhs, trav_rhs;
     const rbnode *pnode_lhs = NULL, *pnode_rhs = NULL;
@@ -770,13 +770,13 @@ mapequal(Var lhs, Var rhs, int case_matters)
 }
 
 int
-mapempty(Var map)
+mapempty(const Var& map)
 {
     return map.v.tree->size == 0;
 }
 
 Num
-maplength(Var map)
+maplength(const Var& map)
 {
     return map.v.tree->size;
 }

@@ -372,13 +372,21 @@ var_refcount(Var v)
 }
 
 int
-is_true(Var v)
+is_true(const Var& v)
 {
-    return ((v.type == TYPE_INT && v.v.num != 0)
-	    || (v.type == TYPE_FLOAT && v.v.fnum != 0.0)
-	    || (v.type == TYPE_STR && v.v.str && *v.v.str != '\0')
-	    || (v.type == TYPE_LIST && v.v.list[0].v.num != 0)
-	    || (v.type == TYPE_MAP && !mapempty(v)));
+    switch(v.type)
+    {
+        case TYPE_INT:
+            return v.v.num != 0;
+        case TYPE_FLOAT:
+            return v.v.fnum != 0.0;
+        case TYPE_STR:
+            return v.v.str && *v.v.str != '\0';
+        case TYPE_LIST:
+            return v.v.list[0].v.num != 0;
+        case TYPE_MAP:
+            return !mapempty(v);
+    }
 }
 
 /* What is the sound of the comparison:
@@ -387,9 +395,11 @@ is_true(Var v)
  * (nor other collection types, for the time being).
  */
 int
-compare(Var lhs, Var rhs, int case_matters)
+compare(const Var &lhs, const Var &rhs, const int case_matters)
 {
-    if (lhs.type == rhs.type) {
+    if (lhs.type != rhs.type)
+        return lhs.type - rhs.type;
+
 	switch (lhs.type) {
 	case TYPE_INT:
 	    return lhs.v.num - rhs.v.num;
@@ -416,15 +426,14 @@ compare(Var lhs, Var rhs, int case_matters)
 	default:
 	    panic_moo("COMPARE: Invalid value type");
 	}
-    }
-    return lhs.type - rhs.type;
 }
 
 int
-equality(Var lhs, Var rhs, int case_matters)
+equality(const Var& lhs, const Var& rhs, const int case_matters)
 {
-    if (lhs.type == rhs.type) {
-	switch (lhs.type) {
+    if (lhs.type != rhs.type)
+        return 0;
+        	switch (lhs.type) {
 	case TYPE_CLEAR:
 	    return 1;
 	case TYPE_NONE:
@@ -458,8 +467,6 @@ equality(Var lhs, Var rhs, int case_matters)
 	default:
 	    panic_moo("EQUALITY: Unknown value type");
 	}
-    }
-    return 0;
 }
 
 void
@@ -576,7 +583,7 @@ get_system_object(const char *name)
 }
 
 int
-value_bytes(Var v)
+value_bytes(const Var& v)
 {
     int size = sizeof(Var);
 

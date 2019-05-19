@@ -44,7 +44,7 @@
 Var emptylist;
 
 Var
-new_list(int size)
+new_list(const int size)
 {
     Var list;
     Var *ptr;
@@ -120,7 +120,7 @@ list_dup(Var list)
 }
 
 int
-listforeach(Var list, listfunc func, void *data)
+listforeach(const Var& list, listfunc func, void *data)
 {				/* does NOT consume `list' */
     int i, n;
     int first = 1;
@@ -183,11 +183,11 @@ listset(Var list, Var value, int pos)
 }
 
 static Var
-doinsert(Var list, Var value, int pos)
+doinsert(Var list, Var value, const int pos)
 {
     Var _new;
     int i;
-    int size = list.v.list[0].v.num + 1;
+    const int size = list.v.list[0].v.num + 1;
 
     /* Bandaid: See the top of list.cc for an explanation */
     if (list.v.list != emptylist.v.list && var_refcount(list) == 1 && pos == size) {
@@ -238,11 +238,11 @@ listappend(Var list, Var value)
 }
 
 Var
-listdelete(Var list, int pos)
+listdelete(Var list, const int pos)
 {
     Var _new;
     int i;
-    int size = list.v.list[0].v.num - 1;
+    const int size = list.v.list[0].v.num - 1;
 
     _new = new_list(size);
     for (i = 1; i < pos; i++) {
@@ -343,7 +343,7 @@ sublist(Var list, int lower, int upper)
 }
 
 int
-listequal(Var lhs, Var rhs, int case_matters)
+listequal(const Var& lhs, const Var& rhs, const int case_matters)
 {
     if (lhs.v.list == rhs.v.list)
 	return 1;
@@ -351,8 +351,8 @@ listequal(Var lhs, Var rhs, int case_matters)
     if (lhs.v.list[0].v.num != rhs.v.list[0].v.num)
 	return 0;
 
-    int i, c = lhs.v.list[0].v.num;
-    for (i = 1; i <= c; i++) {
+    const int c = lhs.v.list[0].v.num;
+    for (int i = 1; i <= c; i++) {
 	if (!equality(lhs.v.list[i], rhs.v.list[i], case_matters))
 	    return 0;
     }
@@ -503,9 +503,9 @@ unparse_value(Stream * s, Var v)
 
 /* called from utils.c */
 int
-list_sizeof(Var *list)
+list_sizeof(const Var *list)
 {
-    int i, len, size;
+    int size;
 
 #ifdef MEMO_VALUE_BYTES
     if ((size = (((int *)(list))[-2])))
@@ -513,8 +513,8 @@ list_sizeof(Var *list)
 #endif
 
     size = sizeof(Var);	/* for the `length' element */
-    len = list[0].v.num;
-    for (i = 1; i <= len; i++) {
+    const int len = list[0].v.num;
+    for (int i = 1; i <= len; i++) {
 	size += value_bytes(list[i]);
     }
 

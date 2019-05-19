@@ -67,9 +67,9 @@ var_dup(Var v)
 	return v;
 }
 
-extern int is_true(Var v);
-extern int compare(Var lhs, Var rhs, int case_matters);
-extern int equality(Var lhs, Var rhs, int case_matters);
+extern int is_true(const Var& v);
+extern int compare(const Var& lhs, const Var& rhs, const int case_matters);
+extern int equality(const Var& lhs, const Var& rhs, const int case_matters);
 
 extern void stream_add_strsub(Stream *, const char *, const char *, const char *, int);
 extern int strindex(const char *, int, const char *, int, int);
@@ -80,7 +80,7 @@ extern const char *strtr(const char *, int, const char *, int, const char *, int
 extern Var get_system_property(const char *);
 extern Objid get_system_object(const char *);
 
-extern int value_bytes(Var);
+extern int value_bytes(const Var&);
 
 extern void stream_add_raw_bytes_to_clean(Stream *, const char *buffer, int buflen);
 extern const char *raw_bytes_to_clean(const char *buffer, int buflen);
