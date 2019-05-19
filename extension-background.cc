@@ -193,36 +193,6 @@ bf_thread_info(Var arglist, Byte next, void *vdata, Objid progr)
 
 /********************************************************************************************************/
 
-/* The background testing function. Accepts a string argument and a time argument. Its goal is simply
- * to spawn a helper thread, sleep, and then return the string back to you. */
-static package
-bf_background_test(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    char *human_string = 0;
-    asprintf(&human_string, "background_test suspending for %" PRIdN " with string \"%s\"", arglist.v.list[2].v.num, arglist.v.list[1].v.str);
-    return background_thread(background_test_callback, &arglist, human_string);
-}
-
-/* The actual callback function for our background_test function. This function does all of the actual work
- * for the background_test. Receives a pointer to the relevant background_waiter struct. */
-void background_test_callback(void *bw, Var *ret)
-{
-    background_waiter *w = (background_waiter*)bw;
-    Var args = w->data;
-    int wait = (args.v.list[0].v.num >= 2 ? args.v.list[2].v.num : 5);
-
-    sleep(wait);
-
-    if (w->active)
-    {
-        ret->type = TYPE_STR;
-        if (args.v.list[0].v.num == 0)
-            ret->v.str = str_dup("Hello, world.");
-        else
-            ret->v.str = str_dup(args.v.list[1].v.str);
-    }
-}
-
 void
 register_background()
 {
