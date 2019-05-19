@@ -23,7 +23,7 @@ YACC = @YACC@
 
 CFLAGS = -Wall -march=native -Ofast -Wall @CFLAGS@ -fstack-protector-all
 #CFLAGS = -g -Wall -march=native -O3 -ggdb
-CXXFLAGS = $(CFLAGS) @CXXFLAGS@
+CXXFLAGS = $(CFLAGS) @CXXFLAGS@ -std=c++11
 # If you're using GCC, you may prefer:
 # CFLAGS = -O2 -finline-functions
 #

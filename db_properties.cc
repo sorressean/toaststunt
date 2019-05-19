@@ -70,13 +70,12 @@ properties_offset(Var target, Var _this)
  * Returns true iff `o' defines a property named `pname'.
  */
 static int
-property_defined_at(const char *pname, int phash, Object *o)
+property_defined_at(const char *pname, const int phash, Object *o)
 {
     Proplist *props = &(o->propdefs);
-    int length = props->cur_length;
-    int i;
+    const int length = props->cur_length;
 
-    for (i = 0; i < length; i++)
+    for (int i = 0; i < length; i++)
 	if (props->l[i].hash == phash
 	    && !strcasecmp(props->l[i].name, pname))
 	    return 1;
@@ -89,19 +88,18 @@ property_defined_at(const char *pname, int phash, Object *o)
  * `pname'.
  */
 static int
-property_defined_at_or_below(const char *pname, int phash, Object *o)
+property_defined_at_or_below(const char *pname, const int phash, Object *o)
 {
     Proplist *props = &(o->propdefs);
-    int length = props->cur_length;
-    int i;
+    const int length = props->cur_length;
 
-    for (i = 0; i < length; i++)
+    for (int i = 0; i < length; i++)
 	if (props->l[i].hash == phash
 	    && !strcasecmp(props->l[i].name, pname))
 	    return 1;
 
     Var children = o->children;
-    for (i = 1; i <= children.v.list[0].v.num; i++) {
+    for (int i = 1; i <= children.v.list[0].v.num; i++) {
 	Object *child = dbpriv_dereference(children.v.list[i]);
 	if (property_defined_at_or_below(pname, phash, child))
 	    return 1;
@@ -142,13 +140,13 @@ insert_prop2(Var obj, int pos, Pval pval)
 }
 
 static void
-insert_prop(Objid oid, int pos, Pval pval)
+insert_prop(const Objid oid, const int pos, Pval pval)
 {
     insert_prop2(Var::new_obj(oid), pos, pval);
 }
 
 static void
-insert_prop_recursively(Objid root, int prop_pos, Pval pv)
+insert_prop_recursively(const Objid root, const int prop_pos, Pval pv)
 {
     insert_prop(root, prop_pos, pv);
 
@@ -173,8 +171,8 @@ insert_prop_recursively(Objid root, int prop_pos, Pval pv)
 }
 
 int
-db_add_propdef(Var obj, const char *pname, Var value, Objid owner,
-	       unsigned flags)
+db_add_propdef(Var obj, const char *pname, Var value, const Objid owner,
+	       const unsigned flags)
 {
     Object *o;
     Pval pval;
@@ -414,18 +412,6 @@ struct contents_data {
     Var r;
     int i;
 };
-
-static int
-add_to_list(void *data, Objid c)
-{
-    struct contents_data *d = (struct contents_data *)data;
-
-    d->i++;
-    d->r.v.list[d->i].type = TYPE_OBJ;
-    d->r.v.list[d->i].v.obj = c;
-
-    return 0;
-}
 
 static void
 get_bi_value(db_prop_handle h, Var * value)
