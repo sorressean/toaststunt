@@ -58,6 +58,7 @@ typedef struct {
     const char *verb;
     const char *verbname;
     int debug;
+    bool threaded;
 } activation;
 
 extern void free_activation(activation *, char data_too);
@@ -86,7 +87,7 @@ extern enum error call_verb(Objid obj, const char *vname,
 /* if your vname is already a moo str (via str_dup) then you can
    use this interface instead */
 extern enum error call_verb2(Objid obj, const char *vname,
-			     Var _this, Var args, int do_pass);
+			     Var _this, Var args, int do_pass, bool should_thread);
 
 extern int setup_activ_for_eval(Program * prog);
 
@@ -131,5 +132,8 @@ Var *reorder_rt_env(Var * old_rt_env, const char **old_names,
 extern void free_reordered_rt_env_values(void);
 extern void write_activ(activation a);
 extern int read_activ(activation * a, int which_vector);
+
+extern bool get_thread_mode();
+extern void set_thread_mode(bool mode);
 
 #endif

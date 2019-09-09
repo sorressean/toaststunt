@@ -1319,6 +1319,7 @@ enqueue_forked_task2(activation a, int f_index, double after_seconds, int vid)
     a.verb = str_ref(a.verb);
     a.verbname = str_ref(a.verbname);
     a.prog = program_ref(a.prog);
+    a.threaded = true;
     if (vid >= 0) {
 	free_var(a.rt_env[vid]);
 	a.rt_env[vid].type = TYPE_INT;
@@ -1813,6 +1814,7 @@ run_ready_tasks(void)
 			ft = t->t.forked;
 			current_task_id = ft.id;
 			current_local = new_map();
+            ft.a.threaded = true;
 			do_forked_task(ft.program, ft.rt_env, ft.a,
 				       ft.f_index);
 			current_task_id = -1;
@@ -3002,6 +3004,22 @@ bf_finished_tasks(Var arglist, Byte next, void *vdata, Objid progr)
 }
 #endif
 
+static package
+bf_set_thread_mode(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (arglist.v.list[0].v.num == 0) {
+        Var ret;
+        ret.type = TYPE_INT;
+        ret.v.num = get_thread_mode();
+        free_var(arglist);
+        return make_var_pack(ret);
+    } else {
+        set_thread_mode(is_true(arglist.v.list[1]));
+        free_var(arglist);
+        return no_var_pack();
+    }
+}
+
 void
 register_tasks(void)
 {
@@ -3022,4 +3040,5 @@ register_tasks(void)
     register_function("task_local", 0, 0, bf_task_local);
     register_function("switch_player", 2, 2, bf_switch_player,
 		      TYPE_OBJ, TYPE_OBJ);
+    register_function("set_thread_mode", 0, 1, bf_set_thread_mode, TYPE_INT);
 }

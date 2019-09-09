@@ -334,11 +334,11 @@ complex_var_dup(Var v)
     case TYPE_ITER:
 	v = iter_dup(v);
 	break;
-	case TYPE_WAIF:
-	v.v.waif = dup_waif(v.v.waif);
+    case TYPE_WAIF:
+	v = var_ref(v);
 	break;
     case TYPE_ANON:
-	panic_moo("cannot var_dup() anonymous objects\n");
+	v = var_ref(v);
 	break;
     }
     return v;
@@ -386,6 +386,8 @@ is_true(const Var& v)
             return v.v.list[0].v.num != 0;
         case TYPE_MAP:
             return !mapempty(v);
+        default:
+            return 0;
     }
 }
 

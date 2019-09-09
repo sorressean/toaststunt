@@ -35,7 +35,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 
 - Basic threading support:
     - background.cc (a library, of sorts, to make it easier to thread builtins)
-    - Threaded sqlite_query and sqlite_execute functions
+    - Threaded builtins: sqlite_query, sqlite_execute, locate_by_name, sort
 
 - FileIO improvements:
     - Faster reading
@@ -97,6 +97,9 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - set_merge (merges two lists together using setadd)
     - bit_or, bit_and, bit_xor, bit_not (perform bit operations on integers)
     - list_reverse (reverse a list; more performant than goblin's widely used extension)
+    - reseed_random (reseed the random number generator)
+    - yin (yield if needed. Replicates :suspend_if_needed and ticks_left() checks)
+    - sort (a significantly faster replacement for the :sort verb. Also allows for natural sort order and reverse sorting)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name
@@ -152,6 +155,7 @@ Follow the instructions in the notes section below to compile and install Argon2
 
 ```bash
 brew install autoconf pcre aspell nettle
+autoconf
 ./configure
 make
 ```
@@ -172,6 +176,13 @@ It can take some time to seed if your system is low on entropy. If you find star
 
 1. Install `haveged` to generate entropy.
 2. Edit `options.h` and change the value of MINIMUM_SEED_ENTROPY to something smaller, like 20.
+
+### Login screen not showing
+Due to the way proxy detection works, if you're connecting to your MOO from localhost, you won't see the login screen. This is a minor inconvenience and shouldn't affect your ability to actually use your MOO. However, if it bothers you, you can disable HAProxy rewriting:
+
+1. `@prop $server_options.proxy_rewrite 0`
+2. `;load_server_options()`
+
 ## Support and Development
 
 Realtime support and collaborative discussion for ToastStunt primarily takes place on the 'toaststunt' channel on ChatMUD. Barring this, the [Miriani Message Boards](https://board.toastsoft.net/) are another good resource for assistance.

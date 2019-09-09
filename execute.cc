@@ -618,14 +618,14 @@ call_verb(Objid recv, const char *vname_in, Var _this, Var args, int do_pass)
     const char *vname = str_dup(vname_in);
     enum error result;
 
-    result = call_verb2(recv, vname, _this, args, do_pass);
+    result = call_verb2(recv, vname, _this, args, do_pass, true);
     /* call_verb2 got any refs it wanted */
     free_str(vname);
     return result;
 }
 
 enum error
-call_verb2(Objid recv, const char *vname, Var _this, Var args, int do_pass)
+call_verb2(Objid recv, const char *vname, Var _this, Var args, int do_pass, bool should_thread)
 {
     /* if call succeeds, args will be consumed.  If call fails, args
        will NOT be consumed  -- it must therefore be freed by caller */
@@ -702,6 +702,7 @@ call_verb2(Objid recv, const char *vname, Var _this, Var args, int do_pass)
     RUN_ACTIV.verb = str_ref(vname);
     RUN_ACTIV.verbname = str_ref(db_verb_names(h));
     RUN_ACTIV.debug = (db_verb_flags(h) & VF_DEBUG);
+    RUN_ACTIV.threaded = should_thread;
 
     alloc_rt_stack(&RUN_ACTIV, program->main_vector.max_stack);
     RUN_ACTIV.pc = 0;
@@ -1084,7 +1085,7 @@ do {								\
 			err = E_TYPE;
 		    } else {
 			STORE_STATE_VARIABLES();
-			err = call_verb2(_class, waif_indexset_verb, list, args, 0);
+			err = call_verb2(_class, waif_indexset_verb, list, args, 0, true);
 			if (err == E_VERBNF) {
 			    err = E_TYPE;
 			}
@@ -1444,7 +1445,7 @@ do {								\
 			err = E_TYPE;
 		    } else {
 			STORE_STATE_VARIABLES();
-			err = call_verb2(_class, waif_index_verb, list, args, 0);
+			err = call_verb2(_class, waif_index_verb, list, args, 0, true);
 			if (err == E_VERBNF) {
 			    err = E_TYPE;
 			}
@@ -1902,7 +1903,7 @@ do {								\
 			free_str(verb.v.str);
 			verb.v.str = str;
 			STORE_STATE_VARIABLES();
-			err = call_verb2(_class, verb.v.str, obj, args, 0);
+			err = call_verb2(_class, verb.v.str, obj, args, 0, true);
 			LOAD_STATE_VARIABLES();
 		} else {
 		    Objid recv = NOTHING;
@@ -1939,7 +1940,7 @@ MATCH_TYPE(OBJ, obj)
 
 		    if (obj.is_object() || recv != NOTHING) {
 			STORE_STATE_VARIABLES();
-			err = call_verb2(recv, verb.v.str, obj, args, 0);
+			err = call_verb2(recv, verb.v.str, obj, args, 0, true);
 			/* if there is no error, RUN_ACTIV is now the CALLEE's.
 			   args will be consumed in the new rt_env */
 			/* if there is an error, then RUN_ACTIV is unchanged, and
@@ -3029,6 +3030,7 @@ do_server_program_task(Var _this, const char *verb, Var args, Var vloc,
     RUN_ACTIV.verb = str_dup(verb);
     RUN_ACTIV.verbname = str_dup(verbname);
     RUN_ACTIV.debug = debug;
+    RUN_ACTIV.threaded = true;
     fill_in_rt_consts(env, program->version);
     set_rt_env_obj(env, SLOT_PLAYER, player);
     set_rt_env_obj(env, SLOT_CALLER, -1);
@@ -3063,6 +3065,7 @@ do_input_task(Objid user, Parsed_Command * pc, Objid recv, db_verb_handle vh)
     RUN_ACTIV.verb = str_ref(pc->verb);
     RUN_ACTIV.verbname = str_ref(db_verb_names(vh));
     RUN_ACTIV.debug = (db_verb_flags(vh) & VF_DEBUG);
+    RUN_ACTIV.threaded = true;
     fill_in_rt_consts(env, prog->version);
     set_rt_env_obj(env, SLOT_PLAYER, user);
     set_rt_env_obj(env, SLOT_CALLER, user);
@@ -3124,6 +3127,7 @@ setup_activ_for_eval(Program * prog)
     RUN_ACTIV.verb = str_dup("");
     RUN_ACTIV.verbname = str_dup("Input to EVAL");
     RUN_ACTIV.debug = 1;
+    RUN_ACTIV.threaded = true;
     alloc_rt_stack(&RUN_ACTIV, RUN_ACTIV.prog->main_vector.max_stack);
     RUN_ACTIV.pc = 0;
     RUN_ACTIV.error_pc = 0;
@@ -3246,6 +3250,44 @@ bf_suspend(Var arglist, Byte next, void *vdata, Objid progr)
     }
 }
 
+/* An in-server replacement for the LambdaCore suspend_if_needed verb.
+ * Arguments:
+ *  time to suspend (default 0)
+ *  ticks left before suspending (default 2000)
+ *  seconds left before suspending (default 2)
+ */
+static package
+bf_yield_if_needed(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    static double seconds, *secondsp = NULL;
+    int min_ticks, min_seconds;
+    int nargs = arglist.v.list[0].v.num;
+
+    if (nargs >= 1)
+        seconds = arglist.v.list[1].type == TYPE_INT ?
+            arglist.v.list[1].v.num :
+            arglist.v.list[1].v.fnum;
+    else
+        seconds = 0;
+
+    secondsp = &seconds;
+
+    min_ticks = (nargs >= 2 ? arglist.v.list[2].v.num : 2000);
+    min_seconds = (nargs >= 3 ? arglist.v.list[3].v.num : 2);
+
+    free_var(arglist);
+
+    if (nargs >= 1 && (seconds < 0 || min_ticks <= 0 || min_seconds <= 0
+                || min_ticks >= server_int_option("fg_ticks", DEFAULT_FG_TICKS)
+                || min_seconds >= server_int_option("fg_seconds", DEFAULT_FG_SECONDS)))
+        return make_error_pack(E_INVARG);
+
+    if (ticks_remaining < min_ticks || timer_wakeup_interval(task_alarm_id) < min_seconds)
+        return make_suspend_pack(enqueue_suspended_task, secondsp);
+    else
+        return no_var_pack();
+}
+
 static package
 bf_read(Var arglist, Byte next, void *vdata, Objid progr)
 {				/* ([object [, non_blocking]]) */
@@ -3347,7 +3389,7 @@ bf_ticks_left(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_pass(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    enum error e = call_verb2(RUN_ACTIV.recv, RUN_ACTIV.verb, RUN_ACTIV._this, arglist, 1);
+    enum error e = call_verb2(RUN_ACTIV.recv, RUN_ACTIV.verb, RUN_ACTIV._this, arglist, 1, true);
 
     if (e == E_NONE)
 	return tail_call_pack();
@@ -3439,6 +3481,7 @@ register_execute(void)
 				      TYPE_STR);
     register_function("raise", 1, 3, bf_raise, TYPE_ANY, TYPE_STR, TYPE_ANY);
     register_function("suspend", 0, 1, bf_suspend, TYPE_NUMERIC);
+    register_function("yin", 0, 3, bf_yield_if_needed, TYPE_NUMERIC, TYPE_INT, TYPE_INT);
     register_function("read", 0, 2, bf_read, TYPE_OBJ, TYPE_ANY);
     register_function("read_http", 1, 2, bf_read_http, TYPE_STR, TYPE_OBJ);
 
@@ -3484,6 +3527,7 @@ write_activ_as_pi(activation a)
 
     dbio_write_var(a._this);
     dbio_write_var(a.vloc);
+    dbio_write_num(a.threaded); // Apparently adding things to the beginning is easier for backward compatibility...
     dbio_printf("%" PRIdN " -7 -8 %" PRIdN " -9 %" PRIdN " %" PRIdN " -10 %d\n", a.recv, a.player, a.progr, a.vloc, a.debug);
     dbio_write_string("No");
     dbio_write_string("More");
@@ -3503,9 +3547,13 @@ read_activ_as_pi(activation * a)
 
     Var _this, vloc;
     if (dbio_input_version >= DBV_This)
-	_this = dbio_read_var();
+        _this = dbio_read_var();
     if (dbio_input_version >= DBV_Anon)
-	vloc = dbio_read_var();
+        vloc = dbio_read_var();
+    if (dbio_input_version >= DBV_Threaded)
+        a->threaded = dbio_read_num();
+    else
+        a->threaded = true;
 
     /* I use a `dummy' variable here and elsewhere instead of the `*'
      * assignment-suppression syntax of `scanf' because it allows more
@@ -3749,4 +3797,14 @@ read_activ(activation * a, int which_vector)
 	}
     }
     return 1;
+}
+
+bool get_thread_mode()
+{
+    return RUN_ACTIV.threaded;
+}
+
+void set_thread_mode(bool mode)
+{
+    RUN_ACTIV.threaded = mode;
 }

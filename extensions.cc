@@ -22,6 +22,9 @@
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #endif
+#include <vector>
+#include <algorithm>        // std::sort
+#include "dependencies/strnatcmp.c" // natural sorting
 
 using namespace std;
 
@@ -81,20 +84,16 @@ bf_ftime(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(r);
 }
 
-/* Locate an object in the database by name more quickly than is possible in-DB. */
-    static package
-bf_locate_by_name(Var arglist, Byte next, void *vdata, Objid progr)
+/* Locate an object in the database by name more quickly than is possible in-DB.
+ * To avoid numerous list reallocations, we put everything in a vector and then
+ * transfer it over to a list when we know how many values we have. */
+void locate_by_name_thread_callback(Var arglist, Var *ret)
 {
-    if (!is_wizard(progr))
-    {
-        free_var(arglist);
-        return make_error_pack(E_PERM);
-    }
-
-    Var ret = new_list(0), name, object;
+    Var name, object;
     object.type = TYPE_OBJ;
+    std::vector<int> tmp;
 
-    int case_matters = is_true(arglist.v.list[2]);
+    int case_matters = arglist.v.list[0].v.num < 2 ? 0 : is_true(arglist.v.list[2]);
     int string_length = memo_strlen(arglist.v.list[1].v.str);
 
     for (int x = 1; x < db_last_used_objid(); x++)
@@ -105,11 +104,115 @@ bf_locate_by_name(Var arglist, Byte next, void *vdata, Objid progr)
         object.v.obj = x;
         db_find_property(object, "name", &name);
         if (strindex(name.v.str, memo_strlen(name.v.str), arglist.v.list[1].v.str, string_length, case_matters))
-            ret = listappend(ret, object);
+            tmp.push_back(x);
     }
 
-    free_var(arglist);
-    return make_var_pack(ret);
+    *ret = new_list(tmp.size());
+    for (size_t x = 0; x < tmp.size(); x++) {
+        ret->v.list[x+1].type = TYPE_OBJ;
+        ret->v.list[x+1].v.obj = tmp[x];
+    }
+}
+
+    static package
+bf_locate_by_name(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_wizard(progr))
+    {
+        free_var(arglist);
+        return make_error_pack(E_PERM);
+    }
+
+    char *human_string = 0;
+    asprintf(&human_string, "locate_by_name: \"%s\"", arglist.v.list[1].v.str);
+
+    return background_thread(locate_by_name_thread_callback, &arglist, human_string);
+}
+
+/* Sorts various MOO types using std::sort.
+ * Args: LIST <values to sort>, [LIST <values to sort by>], [INT <natural sort ordering?>], [INT <reverse?>] */
+void sort_callback(Var arglist, Var *ret)
+{
+    int nargs = arglist.v.list[0].v.num;
+    int list_to_sort = (nargs >= 2 && arglist.v.list[2].v.list[0].v.num > 0 ? 2 : 1);
+    bool natural = (nargs >= 3 && is_true(arglist.v.list[3]));
+    bool reverse = (nargs >= 4 && is_true(arglist.v.list[4]));
+
+    if (arglist.v.list[list_to_sort].v.list[0].v.num == 0) {
+        *ret = new_list(0);
+        return;
+    } else if (list_to_sort == 2 && arglist.v.list[1].v.list[0].v.num != arglist.v.list[2].v.list[0].v.num) {
+        ret->type = TYPE_ERR;
+        ret->v.err = E_INVARG;
+        return;
+    }
+
+    // Create and sort a vector of indices rather than values. This makes it easier to sort a list by another list.
+    std::vector<size_t> s(arglist.v.list[list_to_sort].v.list[0].v.num);
+    var_type type_to_sort = arglist.v.list[list_to_sort].v.list[1].type;
+
+    for (int count = 1; count <= arglist.v.list[list_to_sort].v.list[0].v.num; count++)
+    {
+        var_type type = arglist.v.list[list_to_sort].v.list[count].type;
+        if (type != type_to_sort || type == TYPE_LIST || type == TYPE_MAP || type == TYPE_ANON || type == TYPE_WAIF)
+        {
+            ret->type = TYPE_ERR;
+            ret->v.err = E_TYPE;
+            return;
+        }
+        s[count-1] = count;
+    }
+
+    struct VarCompare {
+        VarCompare(const Var *Arglist, const bool Natural) : m_Arglist(Arglist), m_Natural(Natural) {}
+
+        bool operator()(size_t a, size_t b) const
+        {
+            Var lhs = m_Arglist[a];
+            Var rhs = m_Arglist[b];
+
+            switch (rhs.type) {
+                case TYPE_INT:
+                    return lhs.v.num < rhs.v.num;
+                case TYPE_FLOAT:
+                    return lhs.v.fnum < rhs.v.fnum;
+                case TYPE_OBJ:
+                    return lhs.v.obj < rhs.v.obj;
+                case TYPE_ERR:
+                    return ((int) lhs.v.err) < ((int) rhs.v.err);
+                case TYPE_STR:
+                    return (m_Natural ? strnatcasecmp(lhs.v.str, rhs.v.str) : strcasecmp(lhs.v.str, rhs.v.str)) < 0;
+                default:
+                    errlog("Unknown type in sort compare: %d\n", rhs.type);
+                    return 0;
+            }
+        }
+        const Var *m_Arglist;
+        const bool m_Natural;
+    };
+
+    std::sort(s.begin(), s.end(), VarCompare(arglist.v.list[list_to_sort].v.list, natural));
+
+    *ret = new_list(s.size());
+
+    if (reverse)
+    {
+        int moo_list_pos = 0;
+        for (auto it = s.rbegin(); it != s.rend(); ++it)
+            ret->v.list[++moo_list_pos] = var_ref(arglist.v.list[1].v.list[*it]);
+    } else {
+        for (size_t x = 0; x < s.size(); x++)
+            ret->v.list[x+1] = var_ref(arglist.v.list[1].v.list[s[x]]);
+    }
+}
+
+    static package
+bf_sort(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    char *human_string = 0;
+    asprintf(&human_string, "sorting %" PRIdN " element list", arglist.v.list[1].v.list[0].v.num);
+
+    return background_thread(sort_callback, &arglist, human_string);
 }
 
 /* Calculates the distance between two n-dimensional sets of coordinates. */
@@ -381,40 +484,83 @@ bf_explode(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(r);
 }
 
-/* Return all items of sublists at index */
-    static package
-bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
+void slice_thread_callback(Var arglist, Var *r)
 {
-    const int length = arglist.v.list[1].v.list[0].v.num;
-    if(length < 0)
-    {
-        free_var(arglist);
-        return make_error_pack(E_INVARG);
+    int nargs = arglist.v.list[0].v.num;
+    Var alist = arglist.v.list[1];
+    Var index = (nargs < 2 ? Var::new_int(1) : arglist.v.list[2]);
+    Var ret;
+
+    // Validate the types here since we used TYPE_ANY to allow lists and ints
+    if (nargs > 1 && index.type != TYPE_LIST && index.type != TYPE_INT) {
+        r->type = TYPE_ERR;
+        r->v.err = E_INVARG;
+        return;
     }
 
-    Var ret = new_list(0);
-    int c = 0;
-    if(arglist.v.list[0].v.num == 2)
-        c = arglist.v.list[2].v.num;
-    else
-        c = 1;
+    // Check that that index isn't an empty list and doesn't contain negative or zeroes
+    if (index.type == TYPE_LIST) {
+        if (index.v.list[0].v.num == 0) {
+            r->type = TYPE_ERR;
+            r->v.err = E_RANGE;
+            return;
+        }
+        for (int x = 1; x <= index.v.list[0].v.num; x++) {
+            if (index.v.list[x].type != TYPE_INT || index.v.list[x].v.num <= 0) {
+                r->type = TYPE_ERR;
+                r->v.err = (index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE);
+                return;
+            }
+        }
+    } else if (index.v.num <= 0) {
+        r->type = TYPE_ERR;
+        r->v.err = E_RANGE;
+        return;
+    }
 
-    const Var list=arglist.v.list[1];
-    for(int i = 1; i <= length; ++i)
-        if( list.v.list[i].type != TYPE_LIST || list.v.list[i].v.list[0].v.num < c )
-        {
+    ret = new_list(alist.v.list[0].v.num);
+
+    for (int x = 1; x <= alist.v.list[0].v.num; x++) {
+        if (alist.v.list[x].type != TYPE_LIST) {
             free_var(ret);
-            free_var(arglist);
-            return make_error_pack(E_INVARG);
+            r->type = TYPE_ERR;
+            r->v.err = E_INVARG;
+            return;
+        } else if (index.type != TYPE_LIST) {
+            if (index.v.num > alist.v.list[x].v.list[0].v.num) {
+                free_var(ret);
+                r->type = TYPE_ERR;
+                r->v.err = E_RANGE;
+                return;
+            } else {
+                ret.v.list[x] = var_dup(alist.v.list[x].v.list[index.v.num]);
+            }
+        } else {
+            Var tmp = new_list(index.v.list[0].v.num);
+            for (int y = 1; y <= index.v.list[0].v.num; y++) {
+                if (index.v.list[y].v.num > alist.v.list[x].v.list[0].v.num) {
+                    free_var(ret);
+                    free_var(tmp);
+                    r->type = TYPE_ERR;
+                    r->v.err = E_RANGE;
+                    return;
+                } else {
+                    tmp.v.list[y] = var_dup(alist.v.list[x].v.list[index.v.list[y].v.num]);
+                }
+            }
+            ret.v.list[x] = tmp;
         }
-        else
-        {
-            Var element = var_ref(list.v.list[i].v.list[c]);
-            ret = listappend(ret, element);
-        }
+    }
+    *r = ret;
+}
 
-    free_var(arglist);
-    return make_var_pack(ret);
+static package
+bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    char *human_string = 0;
+    asprintf(&human_string, "slicing a %" PRIdN " element list", arglist.v.list[1].v.list[0].v.num);
+
+    return background_thread(slice_thread_callback, &arglist, human_string);
 }
 
 /* Return a list of objects of parent, optionally with a player flag set.
@@ -437,10 +583,10 @@ bf_occupants(Var arglist, Byte next, void *vdata, Objid progr)
     for (int x = 1; x <= content_length; x++) {
         Objid oid = contents.v.list[x].v.obj;
         if (valid(oid)
-                && (!check_parent ? 1 : db_object_isa(Var::new_obj(oid), parent))
+                && (!check_parent ? 1 : db_object_isa(contents.v.list[x], parent))
                 && (!check_player_flag || (check_player_flag && is_user(oid))))
         {
-            ret = setadd(ret, Var::new_obj(oid));
+            ret = setadd(ret, contents.v.list[x]);
         }
     }
 
@@ -1011,7 +1157,7 @@ register_extensions()
     register_function("panic", 0, 1, bf_panic, TYPE_STR);
     register_function("locate_by_name", 1, 2, bf_locate_by_name, TYPE_STR, TYPE_INT);
     register_function("explode", 1, 2, bf_explode, TYPE_STR, TYPE_STR);
-    register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_INT);
+    register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_ANY);
     register_function("occupants", 1, 3, bf_occupants, TYPE_LIST, TYPE_OBJ, TYPE_INT);
     register_function("locations", 1, 1, bf_locations, TYPE_OBJ);
     register_function("chr", 1, 1, bf_chr, TYPE_INT);
@@ -1028,6 +1174,7 @@ register_extensions()
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
     register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
+    register_function("sort", 1, 4, bf_sort, TYPE_LIST, TYPE_LIST, TYPE_INT, TYPE_INT);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
