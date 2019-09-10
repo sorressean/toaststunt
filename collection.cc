@@ -43,19 +43,20 @@ do_map_iteration(Var key, Var value, void *data, int first)
 }
 
 int
-ismember(Var lhs, Var rhs, int case_matters)
+ismember(const Var lhs, const Var rhs, int case_matters)
 {
-    if (rhs.type == TYPE_LIST) {
-	int i;
-
-	for (i = 1; i <= rhs.v.list[0].v.num; i++) {
+switch(rhs.type) {
+case TYPE_LIST: {
+const int listLength = rhs.v.list[0].v.num;
+	for (int i = 1; i <= listLength; i++) {
 	    if (equality(lhs, rhs.v.list[i], case_matters)) {
 		return i;
 	    }
 	}
 
 	return 0;
-    } else if (rhs.type == TYPE_MAP) {
+    }
+case TYPE_MAP: {
 	struct ismember_data ismember_data;
 
 	ismember_data.i = 1;
@@ -63,7 +64,8 @@ ismember(Var lhs, Var rhs, int case_matters)
 	ismember_data.case_matters = case_matters;
 
 	return mapforeach(rhs, do_map_iteration, &ismember_data);
-    } else {
+}
+default:
 	return 0;
     }
 }
