@@ -32,15 +32,15 @@
 #include "server.h"
 #include "storage.h"
 #include "utils.h"
-#include "xtrapbits.h"
+#include "dependencies/xtrapbits.h"
 #include "map.h"
 #include <map>
 #include "options.h"
 #include "log.h"
 
 static Object **objects;
-static int num_objects = 0;
-static int max_objects = 0;
+static Num num_objects = 0;
+static Num max_objects = 0;
 
 static unsigned int nonce = 0;
 
@@ -159,15 +159,19 @@ dbpriv_after_load(void)
  * includes space for reference counts.
  */
 Object *
-dbpriv_new_object(void)
+dbpriv_new_object(Num new_objid)
 {
     Object *o;
 
-    ensure_new_object();
-    o = objects[num_objects] = (Object *)mymalloc(sizeof(Object), M_OBJECT);
-    o->id = num_objects;
+    if (new_objid <= 0 || new_objid >= num_objects) {
+        ensure_new_object();
+        new_objid = num_objects;
+        num_objects++;
+    }
+
+    o = objects[new_objid] = (Object *)mymalloc(sizeof(Object), M_OBJECT);
+    o->id = new_objid;
     o->waif_propdefs = NULL;
-    num_objects++;
 
     return o;
 }
@@ -216,11 +220,14 @@ db_init_object(Object *o)
 }
 
 Objid
-db_create_object(void)
+db_create_object(Num new_objid)
 {
     Object *o;
 
-    o = dbpriv_new_object();
+    if (new_objid <= 0 || new_objid > num_objects)
+        new_objid = num_objects;
+
+    o = dbpriv_new_object(new_objid);
     db_init_object(o);
 
     return o->id;
@@ -1184,6 +1191,8 @@ void
 db_clear_ancestor_cache(void)
 {
 #ifdef USE_ANCESTOR_CACHE /*Just in case */
+    for (auto const& x : ancestor_cache)
+        free_var(x.second);
     ancestor_cache.clear();
 #endif 
 }

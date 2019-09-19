@@ -64,7 +64,7 @@
 #include "waif.h" /* destroyed_waifs */
 
 extern "C" {
-#include "linenoise.h"
+#include "dependencies/linenoise.h"
 }
 
 static pid_t parent_pid;
@@ -893,7 +893,7 @@ emergency_mode()
 
 	    if (!is_wizard(wizard)) {
 		if (first_valid < 0) {
-		    first_valid = db_create_object();
+		    first_valid = db_create_object(-1);
 		    db_change_parents(Var::new_obj(first_valid), new_list(0), none);
 		    printf("** No objects in database; created #%" PRIdN ".\n",
 			   first_valid);
@@ -1781,6 +1781,9 @@ main(int argc, char **argv)
     gc_collect();
 
     db_shutdown();
+
+    db_clear_ancestor_cache();
+    sqlite_shutdown();
 
     free_str(this_program);
 

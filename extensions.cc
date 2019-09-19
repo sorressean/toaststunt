@@ -25,6 +25,8 @@
 #include <vector>
 #include <algorithm>        // std::sort
 #include "dependencies/strnatcmp.c" // natural sorting
+#include "map.h"
+#include <string.h>         // strtok
 
 using namespace std;
 
@@ -446,112 +448,150 @@ bf_round(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(ret);
 }
 
-/* Return a list of substrings of an argument separated by a break. */
+/* Return a list of substrings of an argument separated by a delimiter. */
     static package
 bf_explode(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    int nargs = arglist.v.list[0].v.num;
-    Stream *brk = new_stream(2);
-    stream_add_string(brk, (nargs > 1) ? arglist.v.list[2].v.str : " ");
-    Var r;
+    const int nargs = arglist.v.list[0].v.num;
+    const char *delim = (nargs > 1 ? arglist.v.list[2].v.str : " ");
+    const bool adjacent_delim = (nargs > 2 && is_true(arglist.v.list[3]));
+    char *found, *return_string, *freeme;
+    Var ret = new_list(0);
 
-    if (strcmp(stream_contents(brk), "") == 0) {
-        // Do we want to break it into letters here?
-        r.type = TYPE_ERR;
-        r.v.err = E_INVARG;
-    } else {
-        r = new_list(0);
-        int i, l = stream_length(brk);
-        Stream *tmp = new_stream(memo_strlen(arglist.v.list[1].v.str)+1);
-        stream_add_string(tmp, arglist.v.list[1].v.str);
-        stream_add_string(tmp, stream_contents(brk));
-
-        Var subject;
-        subject.type = TYPE_STR;
-        subject.v.str = str_dup(reset_stream(tmp));
-        free_stream(tmp);
-
-        while (memo_strlen(subject.v.str)) {
-            if ((i = strindex(subject.v.str, memo_strlen(subject.v.str), stream_contents(brk), stream_length(brk), 0)) > 1) {
-                r = listappend(r, substr(var_dup(subject), 1, i - 1));
-            }
-            subject = substr(subject, i + l, memo_strlen(subject.v.str));
-        }
-        free_var(subject);
-    }
+    freeme = return_string = strdup(arglist.v.list[1].v.str);
     free_var(arglist);
-    free_stream(brk);
-    return make_var_pack(r);
+
+    if (adjacent_delim) {
+        while ((found = strsep(&return_string, delim)) != NULL)
+            ret = listappend(ret, str_dup_to_var(found));
+    } else {
+        found = strtok(return_string, delim);
+        while (found != NULL) {
+            ret = listappend(ret, str_dup_to_var(found));
+            found = strtok(NULL, delim);
+        }
+    }
+    free(freeme);
+    return make_var_pack(ret);
 }
 
-void slice_thread_callback(Var arglist, Var *r)
+    static package
+bf_reverse(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var ret;
+
+    if (arglist.v.list[1].type == TYPE_LIST) {
+        int elements = arglist.v.list[1].v.list[0].v.num;
+        ret = new_list(elements);
+
+        for (size_t x = elements, y = 1; x >= 1; x--, y++) {
+            ret.v.list[y] = var_ref(arglist.v.list[1].v.list[x]);
+        }
+    } else if (arglist.v.list[1].type == TYPE_STR) {
+        size_t len = memo_strlen(arglist.v.list[1].v.str);
+        if (len <= 1) {
+            ret = var_ref(arglist.v.list[1]);
+        } else {
+            char *new_str = (char *)mymalloc(len + 1, M_STRING);
+            for (size_t x = 0, y = len-1; x < len; x++, y--)
+                new_str[x] = arglist.v.list[1].v.str[y];
+            new_str[len] = '\0';
+            ret.type = TYPE_STR;
+            ret.v.str = new_str;
+        }
+    } else {
+        ret.type = TYPE_ERR;
+        ret.v.err = E_INVARG;
+    }
+
+    free_var(arglist);
+    return ret.type == TYPE_ERR ? make_error_pack(ret.v.err) : make_var_pack(ret);
+}
+
+void slice_thread_callback(Var arglist, Var *ret)
 {
     int nargs = arglist.v.list[0].v.num;
     Var alist = arglist.v.list[1];
     Var index = (nargs < 2 ? Var::new_int(1) : arglist.v.list[2]);
-    Var ret;
 
     // Validate the types here since we used TYPE_ANY to allow lists and ints
-    if (nargs > 1 && index.type != TYPE_LIST && index.type != TYPE_INT) {
-        r->type = TYPE_ERR;
-        r->v.err = E_INVARG;
+    if (nargs > 1 && index.type != TYPE_LIST && index.type != TYPE_INT && index.type != TYPE_STR) {
+        ret->type = TYPE_ERR;
+        ret->v.err = E_INVARG;
         return;
     }
 
     // Check that that index isn't an empty list and doesn't contain negative or zeroes
     if (index.type == TYPE_LIST) {
         if (index.v.list[0].v.num == 0) {
-            r->type = TYPE_ERR;
-            r->v.err = E_RANGE;
+            ret->type = TYPE_ERR;
+            ret->v.err = E_RANGE;
             return;
         }
         for (int x = 1; x <= index.v.list[0].v.num; x++) {
             if (index.v.list[x].type != TYPE_INT || index.v.list[x].v.num <= 0) {
-                r->type = TYPE_ERR;
-                r->v.err = (index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE);
+                ret->type = TYPE_ERR;
+                ret->v.err = (index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE);
                 return;
             }
         }
     } else if (index.v.num <= 0) {
-        r->type = TYPE_ERR;
-        r->v.err = E_RANGE;
+        ret->type = TYPE_ERR;
+        ret->v.err = E_RANGE;
         return;
     }
 
-    ret = new_list(alist.v.list[0].v.num);
+    /* Ideally, we could allocate the list with the number of elements in our first list.
+     * Unfortunately, if we need to return an error in the middle of setting elements in the return list,
+     * we can't free_var the entire list because some elements haven't been set yet. So instead we do it the
+     * old fashioned way unless/until somebody wants to refactor this to do all the error checking ahead of time. */
+    *ret = new_list(0);
 
     for (int x = 1; x <= alist.v.list[0].v.num; x++) {
-        if (alist.v.list[x].type != TYPE_LIST) {
-            free_var(ret);
-            r->type = TYPE_ERR;
-            r->v.err = E_INVARG;
+        Var element = alist.v.list[x];
+        if ((element.type != TYPE_LIST && element.type != TYPE_STR && element.type != TYPE_MAP)
+                || ((element.type == TYPE_MAP && index.type != TYPE_STR) || (index.type == TYPE_STR && element.type != TYPE_MAP))) {
+            free_var(*ret);
+            ret->type = TYPE_ERR;
+            ret->v.err = E_INVARG;
             return;
-        } else if (index.type != TYPE_LIST) {
-            if (index.v.num > alist.v.list[x].v.list[0].v.num) {
-                free_var(ret);
-                r->type = TYPE_ERR;
-                r->v.err = E_RANGE;
+        }
+        if (index.type == TYPE_STR) {
+            if (element.type != TYPE_MAP) {
+                free_var(*ret);
+                ret->type = TYPE_ERR;
+                ret->v.err = E_INVARG;
                 return;
             } else {
-                ret.v.list[x] = var_dup(alist.v.list[x].v.list[index.v.num]);
+                Var tmp;
+                if (maplookup(element, index, &tmp, 0) != NULL)
+                    *ret = listappend(*ret, var_ref(tmp));
             }
-        } else {
-            Var tmp = new_list(index.v.list[0].v.num);
+        } else if (index.type == TYPE_INT) {
+            if (index.v.num > (element.type == TYPE_STR ? memo_strlen(element.v.str) : element.v.list[0].v.num)) {
+                free_var(*ret);
+                ret->type = TYPE_ERR;
+                ret->v.err = E_RANGE;
+                return;
+            } else {
+                *ret = listappend(*ret, (element.type == TYPE_STR ? substr(var_ref(element), index.v.num, index.v.num) : var_ref(element.v.list[index.v.num])));
+            }
+        } else if (index.type == TYPE_LIST) {
+            Var tmp = new_list(0);
             for (int y = 1; y <= index.v.list[0].v.num; y++) {
-                if (index.v.list[y].v.num > alist.v.list[x].v.list[0].v.num) {
-                    free_var(ret);
+                if (index.v.list[y].v.num > (element.type == TYPE_STR ? memo_strlen(element.v.str) : element.v.list[0].v.num)) {
+                    free_var(*ret);
                     free_var(tmp);
-                    r->type = TYPE_ERR;
-                    r->v.err = E_RANGE;
+                    ret->type = TYPE_ERR;
+                    ret->v.err = E_RANGE;
                     return;
                 } else {
-                    tmp.v.list[y] = var_dup(alist.v.list[x].v.list[index.v.list[y].v.num]);
+                    tmp = listappend(tmp, (element.type == TYPE_STR ? substr(var_ref(element), index.v.list[y].v.num, index.v.list[y].v.num) : var_ref(element.v.list[index.v.list[y].v.num])));
                 }
             }
-            ret.v.list[x] = tmp;
+            *ret = listappend(*ret, tmp);
         }
     }
-    *r = ret;
 }
 
 static package
@@ -563,11 +603,23 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
     return background_thread(slice_thread_callback, &arglist, human_string);
 }
 
+static bool multi_parent_isa(const Var *object, const Var *parents)
+{
+    if (parents->type == TYPE_OBJ)
+        return db_object_isa(*object, *parents);
+
+    for (int y = 1; y <= parents->v.list[0].v.num; y++)
+        if (db_object_isa(*object, parents->v.list[y]))
+            return true;
+
+    return false;
+}
+
 /* Return a list of objects of parent, optionally with a player flag set.
  * With only one argument, player flag is assumed to be the only condition.
  * With two arguments, parent is the only condition.
  * With three arguments, parent is checked first and then the player flag is checked.
- * occupants(LIST objects, OBJ parent, ?INT player flag set)
+ * occupants(LIST objects, OBJ | LIST parent, ?INT player flag set)
  */
     static package
 bf_occupants(Var arglist, Byte next, void *vdata, Objid progr)
@@ -580,10 +632,15 @@ bf_occupants(Var arglist, Byte next, void *vdata, Objid progr)
     Var parent = check_parent ? arglist.v.list[2] : nothing;
     bool check_player_flag = (nargs == 1 || (nargs > 2 && is_true(arglist.v.list[3])));
 
+    if (check_parent && !is_obj_or_list_of_objs(parent)) {
+        free_var(arglist);
+        return make_error_pack(E_TYPE);
+    }
+
     for (int x = 1; x <= content_length; x++) {
         Objid oid = contents.v.list[x].v.obj;
         if (valid(oid)
-                && (!check_parent ? 1 : db_object_isa(contents.v.list[x], parent))
+                && (!check_parent ? 1 : multi_parent_isa(&contents.v.list[x], &parent))
                 && (!check_player_flag || (check_player_flag && is_user(oid))))
         {
             ret = setadd(ret, contents.v.list[x]);
@@ -1156,9 +1213,10 @@ register_extensions()
     register_function("ftime", 0, 1, bf_ftime, TYPE_INT);
     register_function("panic", 0, 1, bf_panic, TYPE_STR);
     register_function("locate_by_name", 1, 2, bf_locate_by_name, TYPE_STR, TYPE_INT);
-    register_function("explode", 1, 2, bf_explode, TYPE_STR, TYPE_STR);
+    register_function("explode", 1, 3, bf_explode, TYPE_STR, TYPE_STR, TYPE_INT);
+    register_function("reverse", 1, 1, bf_reverse, TYPE_ANY);
     register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_ANY);
-    register_function("occupants", 1, 3, bf_occupants, TYPE_LIST, TYPE_OBJ, TYPE_INT);
+    register_function("occupants", 1, 3, bf_occupants, TYPE_LIST, TYPE_ANY, TYPE_INT);
     register_function("locations", 1, 1, bf_locations, TYPE_OBJ);
     register_function("chr", 1, 1, bf_chr, TYPE_INT);
     register_function("deep_contents", 1, 2, bf_deep_contents, TYPE_OBJ, TYPE_OBJ);

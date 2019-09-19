@@ -3,7 +3,6 @@
 
 #include <sqlite3.h>
 #include <stdbool.h>
-#include <map>
 
 #include "functions.h"
 #include "numbers.h"
@@ -40,11 +39,6 @@ typedef struct sqlite_result
     Var last_result;
 } sqlite_result;
 
-// Map of open connections
-static std::map <int, sqlite_conn> sqlite_connections;
-// Next database handle. This will get reset to 1 when all connections get closed.
-static int next_sqlite_handle = 1;
-
 // Forward declarations
 extern const char *file_resolve_path(const char *);             // from fileio.cc
 extern int parse_number(const char *, int *, int);              // from numbers.cc
@@ -54,11 +48,12 @@ extern int parse_float(const char *, double *);                 // from numbers.
 bool valid_handle(int handle);
 int next_handle();
 int allocate_handle();
-void deallocate_handle(int handle);
+void deallocate_handle(int handle, bool shutdown);
 int database_already_open(const char *path);
 int callback(void *, int, char **, char **);
 void sanitize_string_for_moo(char *);
 Var string_to_moo_type(char *, bool, bool);
 Stream* object_to_string(Var *);
+void sqlite_shutdown();
 
 #endif /* EXTENSION_SQLITE_H */

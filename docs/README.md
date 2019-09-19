@@ -6,6 +6,7 @@ See `README.stunt' for general information on Stunt.
 ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of features that were found useful while developing [Miriani](https://www.toastsoft.net) and [ChatMud](https://www.chatmud.com/), a mostly complete list of which can be found below.
 
 * [Features](#features)
+* [ChangeLog](ChangeLog.md)
 * [Build Instructions](#build-instructions)
   * [Debian/Ubuntu](#debian-ubuntu)
   * [REL/CentOS](#rel-centos)
@@ -35,7 +36,8 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 
 - Basic threading support:
     - background.cc (a library, of sorts, to make it easier to thread builtins)
-    - Threaded builtins: sqlite_query, sqlite_execute, locate_by_name, sort
+    - Threaded builtins: sqlite_query, sqlite_execute, locate_by_name, sort, slice, argon2, argon2_verify
+    - set_thread_mode (an argument of 0 will disable threading for all builtins in the current verb, 1 will re-enable, and no arguments will print the current mode)
 
 - FileIO improvements:
     - Faster reading
@@ -74,6 +76,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - MAX_LINE_BYTES (unceremoniously close connections that send lines exceeding this value to prevent memory allocation panics)
     - DEFAULT_LAG_THRESHOLD (the number of seconds allowed before a task is considered laggy and triggers #0:handle_lagging_task)
     - SAVE_FINISHED_TASKS (enable the finished_tasks function and define how many tasks get saved by default) [default can be overridden with $server_options.finished_tasks_limit]
+    - THREAD_ARGON2 (enable threading of Argon2 functions)
 
 - Additional builtins:
     - frandom (random floats)
@@ -100,6 +103,8 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - reseed_random (reseed the random number generator)
     - yin (yield if needed. Replicates :suspend_if_needed and ticks_left() checks)
     - sort (a significantly faster replacement for the :sort verb. Also allows for natural sort order and reverse sorting)
+    - recreate (fill holes created by destroy() by recreating valid objects with those object numbers)
+    - reverse (reverse lists)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name
@@ -131,13 +136,12 @@ make
 ### **REL/CentOS**
 ```bash
 yum group install -y "Development Tools"
-yum install -y sqlite-devel pcre-devel aspell-devel nettle-devel gperf   centos-release-scl
+yum install -y sqlite-devel pcre-devel aspell-devel nettle-devel gperf centos-release-scl
 yum install -y devtoolset-7
 scl enable devtoolset-7 bash
 autoconf
 ./configure
 make
-exit
 ```
 
 ### **Gentoo**
