@@ -1,5 +1,21 @@
 # ToastStunt ChangeLog
 
+## 2.5.12 (Oct 3, 2019)
+- The `chr()` function can now accept any number of arguments, similar to how `encode_binary()` works.
+- Add a `recycled_objects()` builtin, which will return a list of all invalid object numbers currently in the database.
+- Return `recycle()` to its final glory and call `:recycle` on objects and waifs before destroying them instead of `:pre_destroy`. (Standard LambdaMOO functionality.)
+- Add a `next_recycled_object(<?starting-object>)` builtin, which will iterate through the object hierarchy to find the lowest object that is invalid and return it. If none are available, 0 is returned. Providing an object as the first argument will start the search at that object, in the unlikely event that you only want to find non-valid objects passed a certain point.
+
+**WARNING**: This breaks compatibility with old code that uses `destroy()` or relies on `:pre_destroy` being called. You will need to open your database file in a text editor and replace `destroy` and `pre_destroy` with `recycle`.
+
+## 2.5.11 (Sep 30, 2019)
+- Catch SIGUSR1 and, if the server was started with a log file, close and reopen the file. This way scripts can move the old log file and `kill -SIGUSR1 <pid>` to rotate logs without restarting the server.
+- Add an `all_members(<value>, <list>)` function to return the indices of all occurances of <value> in <list>.
+- Improve performance of string comparisons by using the pre-computed length (if `MEMO_STRLEN` is enabled in options.h) of strings to rule out equality before doing a character by character comparison.
+- Add the ability to specify the default thread mode in `extension-background.h`. By default (true), threaded functions are threaded unless you explicitly `set_thread_mode(0)`. When set to false, threaded functions are not threaded until you explicitly `set_thread_mode(1)`
+
+**WARNING**: This redefines the SIGUSR1 signal to mean 'reopen logfile' rather than 'shutdown'. If you rely on the old behavior, you will need to update your scripts accordingly.
+
 ## 2.5.10 (Sep 16, 2019)
 - Fix a bug in `slice()` where the server would crash if `slice()` raised an error in the middle of processing a list.
 - Add missing support for strings to `slice()`.

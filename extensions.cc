@@ -508,99 +508,87 @@ bf_reverse(Var arglist, Byte next, void *vdata, Objid progr)
     return ret.type == TYPE_ERR ? make_error_pack(ret.v.err) : make_var_pack(ret);
 }
 
-void slice_thread_callback(Var arglist, Var *ret)
+static package
+bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
 {
+    Var ret;
     int nargs = arglist.v.list[0].v.num;
     Var alist = arglist.v.list[1];
     Var index = (nargs < 2 ? Var::new_int(1) : arglist.v.list[2]);
 
     // Validate the types here since we used TYPE_ANY to allow lists and ints
     if (nargs > 1 && index.type != TYPE_LIST && index.type != TYPE_INT && index.type != TYPE_STR) {
-        ret->type = TYPE_ERR;
-        ret->v.err = E_INVARG;
-        return;
+        free_var(arglist);
+        return make_error_pack(E_INVARG);
     }
 
     // Check that that index isn't an empty list and doesn't contain negative or zeroes
     if (index.type == TYPE_LIST) {
         if (index.v.list[0].v.num == 0) {
-            ret->type = TYPE_ERR;
-            ret->v.err = E_RANGE;
-            return;
+            free_var(arglist);
+            return make_error_pack(E_RANGE);
         }
+
         for (int x = 1; x <= index.v.list[0].v.num; x++) {
             if (index.v.list[x].type != TYPE_INT || index.v.list[x].v.num <= 0) {
-                ret->type = TYPE_ERR;
-                ret->v.err = (index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE);
-                return;
+                free_var(arglist);
+                return make_error_pack((index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE));
             }
         }
     } else if (index.v.num <= 0) {
-        ret->type = TYPE_ERR;
-        ret->v.err = E_RANGE;
-        return;
+        free_var(arglist);
+        return make_error_pack(E_RANGE);
     }
 
     /* Ideally, we could allocate the list with the number of elements in our first list.
      * Unfortunately, if we need to return an error in the middle of setting elements in the return list,
      * we can't free_var the entire list because some elements haven't been set yet. So instead we do it the
      * old fashioned way unless/until somebody wants to refactor this to do all the error checking ahead of time. */
-    *ret = new_list(0);
+    ret = new_list(0);
 
     for (int x = 1; x <= alist.v.list[0].v.num; x++) {
         Var element = alist.v.list[x];
         if ((element.type != TYPE_LIST && element.type != TYPE_STR && element.type != TYPE_MAP)
                 || ((element.type == TYPE_MAP && index.type != TYPE_STR) || (index.type == TYPE_STR && element.type != TYPE_MAP))) {
-            free_var(*ret);
-            ret->type = TYPE_ERR;
-            ret->v.err = E_INVARG;
-            return;
+            free_var(arglist);
+            free_var(ret);
+            return make_error_pack(E_INVARG);
         }
         if (index.type == TYPE_STR) {
             if (element.type != TYPE_MAP) {
-                free_var(*ret);
-                ret->type = TYPE_ERR;
-                ret->v.err = E_INVARG;
-                return;
+                free_var(arglist);
+                free_var(ret);
+                return make_error_pack(E_INVARG);
             } else {
                 Var tmp;
                 if (maplookup(element, index, &tmp, 0) != NULL)
-                    *ret = listappend(*ret, var_ref(tmp));
+                    ret = listappend(ret, var_ref(tmp));
             }
         } else if (index.type == TYPE_INT) {
             if (index.v.num > (element.type == TYPE_STR ? memo_strlen(element.v.str) : element.v.list[0].v.num)) {
-                free_var(*ret);
-                ret->type = TYPE_ERR;
-                ret->v.err = E_RANGE;
-                return;
+                free_var(arglist);
+                free_var(ret);
+                return make_error_pack(E_RANGE);
             } else {
-                *ret = listappend(*ret, (element.type == TYPE_STR ? substr(var_ref(element), index.v.num, index.v.num) : var_ref(element.v.list[index.v.num])));
+                ret = listappend(ret, (element.type == TYPE_STR ? substr(var_ref(element), index.v.num, index.v.num) : var_ref(element.v.list[index.v.num])));
             }
         } else if (index.type == TYPE_LIST) {
             Var tmp = new_list(0);
             for (int y = 1; y <= index.v.list[0].v.num; y++) {
                 if (index.v.list[y].v.num > (element.type == TYPE_STR ? memo_strlen(element.v.str) : element.v.list[0].v.num)) {
-                    free_var(*ret);
+                    free_var(arglist);
+                    free_var(ret);
                     free_var(tmp);
-                    ret->type = TYPE_ERR;
-                    ret->v.err = E_RANGE;
-                    return;
+                    return make_error_pack(E_RANGE);
                 } else {
                     tmp = listappend(tmp, (element.type == TYPE_STR ? substr(var_ref(element), index.v.list[y].v.num, index.v.list[y].v.num) : var_ref(element.v.list[index.v.list[y].v.num])));
                 }
             }
-            *ret = listappend(*ret, tmp);
+            ret = listappend(ret, tmp);
         }
     }
-}
-
-static package
-bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    char *human_string = 0;
-    asprintf(&human_string, "slicing a %" PRIdN " element list", arglist.v.list[1].v.list[0].v.num);
-
-    return background_thread(slice_thread_callback, &arglist, human_string);
+    free_var(arglist);
+    return make_var_pack(ret);
 }
 
 static bool multi_parent_isa(const Var *object, const Var *parents)
@@ -677,41 +665,25 @@ bf_locations(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(locs);
 }
 
-/* Return a symbol for the ASCII value associated. */
-    static package
-bf_chr(Var arglist, Byte next, void *vdata, Objid progr)
+void all_members_thread_callback(Var arglist, Var *ret)
 {
-    Var r;
-    char str[2];
+    *ret = new_list(0);
+    Var data = arglist.v.list[1];
+    Var *thelist = arglist.v.list[2].v.list;
 
-    switch (arglist.v.list[1].type) {
-        case TYPE_INT:
-            if ((arglist.v.list[1].v.num < 1) || (arglist.v.list[1].v.num > 255)) {
-                free_var(arglist);
-                return make_error_pack(E_INVARG);
-            } else if (arglist.v.list[1].v.num < 32 && !is_wizard(progr)) {
-                free_var(arglist);
-                return make_error_pack(E_PERM);
-            }
-            str[0] = (char) arglist.v.list[1].v.num;
-            str[1] = '\0';
-            r.type = TYPE_STR;
-            r.v.str = str_dup(str);
-            break;
-        case TYPE_STR:
-            if (!(r.v.num = (int) arglist.v.list[1].v.str[0])) {
-                free_var(arglist);
-                return make_error_pack(E_INVARG);
-            }
-            r.type = TYPE_INT;
-            break;
-        default:
-            free_var(arglist);
-            return make_error_pack(E_TYPE);
-    }
+    for (int x = 1, list_size = arglist.v.list[2].v.list[0].v.num; x <= list_size; x++)
+        if (equality(data, thelist[x], 0))
+            *ret = listappend(*ret, Var::new_int(x));
+}
 
-    free_var(arglist);
-    return make_var_pack(r);
+/* Return the indices of all elements of a value in a list. */
+    static package
+bf_all_members(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    char *human_string = 0;
+    asprintf(&human_string, "all_members in %" PRIdN " element list", arglist.v.list[2].v.list[0].v.num);
+
+    return background_thread(all_members_thread_callback, &arglist, human_string);
 }
 
 // ============= ANSI ===============
@@ -846,6 +818,7 @@ bf_remove_ansi(Var arglist, Byte next, void *vdata, Objid progr)
 }
 //==============================================================
 
+<<<<<<< HEAD
 static void do_deep_contents(set<Objid> &objids, Var branch, Var parent, bool perform_isa=false)
 {
     if (branch.type != TYPE_OBJ)
@@ -1014,10 +987,29 @@ bf_intersection(Var arglist, Byte next, void *vdata, Objid progr)
         }
 
     free_var(arglist);
+=======
+#define STUPID_VERB_CACHE 1
+#ifdef STUPID_VERB_CACHE
+#include "db_tune.h"
+
+static package
+bf_verb_cache_stats(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var r;
+
+    free_var(arglist);
+
+    if (!is_wizard(progr)) {
+	return make_error_pack(E_PERM);
+    }
+    r = db_verb_cache_stats();
+
+>>>>>>> upstream
     return make_var_pack(r);
 }
 
 static package
+<<<<<<< HEAD
 bf_diff(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var result = var_dup(arglist.v.list[1]);
@@ -1200,6 +1192,20 @@ bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
   free_var(arglist);
   return make_var_pack(r);
 }
+=======
+bf_log_cache_stats(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    free_var(arglist);
+
+    if (!is_wizard(progr)) {
+	return make_error_pack(E_PERM);
+    }
+    db_log_cache_stats();
+
+    return no_var_pack();
+}
+#endif
+>>>>>>> upstream
 
     void
 register_extensions()
@@ -1218,6 +1224,7 @@ register_extensions()
     register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_ANY);
     register_function("occupants", 1, 3, bf_occupants, TYPE_LIST, TYPE_ANY, TYPE_INT);
     register_function("locations", 1, 1, bf_locations, TYPE_OBJ);
+<<<<<<< HEAD
     register_function("chr", 1, 1, bf_chr, TYPE_INT);
     register_function("deep_contents", 1, 2, bf_deep_contents, TYPE_OBJ, TYPE_OBJ);
     register_function("contains_key", 2, 2, bf_contains_key, TYPE_MAP, TYPE_ANY);
@@ -1232,10 +1239,17 @@ register_extensions()
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
     register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
+=======
+>>>>>>> upstream
     register_function("sort", 1, 4, bf_sort, TYPE_LIST, TYPE_LIST, TYPE_INT, TYPE_INT);
+    register_function("all_members", 2, 2, bf_all_members, TYPE_ANY, TYPE_LIST);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
     register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
+#ifdef STUPID_VERB_CACHE
+    register_function("log_cache_stats", 0, 0, bf_log_cache_stats);
+    register_function("verb_cache_stats", 0, 0, bf_verb_cache_stats);
+#endif
 }

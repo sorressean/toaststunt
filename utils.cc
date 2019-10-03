@@ -335,17 +335,17 @@ complex_var_dup(Var v)
 	v = iter_dup(v);
 	break;
     case TYPE_WAIF:
-	v = var_ref(v);
+    v.v.waif = dup_waif(v.v.waif);
 	break;
     case TYPE_ANON:
-	v = var_ref(v);
+	panic_moo("cannot var_dup() anonymous objects\n");
 	break;
     }
     return v;
 }
 
 /* could be inlined and use complex_etc like the others, but this should
- * usually be called in a context where we already konw the type.
+ * usually be called in a context where we already know the type.
  */
 int
 var_refcount(Var v)
@@ -367,6 +367,9 @@ var_refcount(Var v)
 	if (v.v.anon)
 	    return refcount(v.v.anon);
 	break;
+    case TYPE_WAIF:
+    return refcount(v.v.waif);
+    break;
     }
     return 1;
 }
@@ -449,15 +452,16 @@ equality(const Var& lhs, const Var& rhs, const int case_matters)
 	case TYPE_STR:
 	    if (lhs.v.str == rhs.v.str)
 		return 1;
+#ifdef MEMO_STRLEN
+        else if (memo_strlen(lhs.v.str) != memo_strlen(rhs.v.str))
+        return 0;
+#endif /* memo_strlen */
 	    else if (case_matters)
 		return !strcmp(lhs.v.str, rhs.v.str);
 	    else
 		return !strcasecmp(lhs.v.str, rhs.v.str);
 	case TYPE_FLOAT:
-	    if (lhs.v.fnum == rhs.v.fnum)
-		return 1;
-	    else
-		return (lhs.v.fnum) == (rhs.v.fnum);
+		return lhs.v.fnum == rhs.v.fnum;
 	case TYPE_LIST:
 	    return listequal(lhs, rhs, case_matters);
 	case TYPE_MAP:
@@ -658,7 +662,7 @@ stream_add_raw_bytes_to_binary(Stream *s, const char *buffer, int buflen)
 	if (c != '~' && (isgraph(c) || c == ' '))
 	    stream_add_char(s, c);
 	else
-	    stream_printf(s, "~%02x", (int) c);
+	    stream_printf(s, "~%02X", (int) c);
     }
 }
 

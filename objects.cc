@@ -27,6 +27,7 @@
 #include "storage.h"
 #include "structures.h"
 #include "utils.h"
+#include "log.h"
 
 static int
 controls(Objid who, Objid what)
@@ -51,7 +52,7 @@ make_arglist(Objid what)
 
     return r;
 }
-
+
 static bool
 all_valid(Var vars)
 {
@@ -73,7 +74,7 @@ all_allowed(Var vars, Objid progr, db_object_flag f)
 	    return false;
     return true;
 }
-
+
 /*
  * Returns true if `_this' is a descendant of `obj'.
  */
@@ -103,7 +104,7 @@ any_are_descendants(Var these, Var obj)
     free_var(descendants);
     return false;
 }
-
+
 struct bf_move_data {
     Objid what, where;
     int position;
@@ -114,7 +115,7 @@ do_move(Var arglist, Byte next, struct bf_move_data *data, Objid progr)
 {
     Objid what = data->what, where = data->where;
     int position = data->position, accepts;
-    Objid oid, oldloc;
+    Objid oid, oldloc = FAILED_MATCH;
     Var args;
     enum error e;
 
@@ -163,7 +164,7 @@ do_move(Var arglist, Byte next, struct bf_move_data *data, Objid progr)
 	    if (oid == what)
 		return make_error_pack(E_RECMOVE);
 
-	oldloc = db_object_location(what);
+    oldloc = db_object_location(what);
 	db_change_location(what, where, position);
 
 	if (where != oldloc) {
@@ -246,7 +247,7 @@ bf_move_read()
     else
 	return 0;
 }
-
+
 static package
 bf_toobj(Var arglist, Byte next, void *vdata, Objid progr)
 {
@@ -274,7 +275,7 @@ bf_typeof(Var arglist, Byte next, void *vdata, Objid progr)
     free_var(arglist);
     return make_var_pack(r);
 }
-
+
 static package
 bf_valid(Var arglist, Byte next, void *vdata, Objid progr)
 {				/* (object) */
@@ -449,7 +450,7 @@ bf_recreate(Var arglist, Byte next, void *vdata, Objid progr)
     Var r;
 
     if (next == 1) {
-	if (arglist.v.list[1].v.obj <= 0 || is_valid(arglist.v.list[1])) {
+	if (arglist.v.list[1].v.obj <= 0 || arglist.v.list[1].v.obj > db_last_used_objid() || is_valid(arglist.v.list[1])) {
         free_var(arglist);
         return make_error_pack(E_INVARG);
     }
@@ -458,7 +459,7 @@ bf_recreate(Var arglist, Byte next, void *vdata, Objid progr)
     if (arglist.v.list[0].v.num > 2 && arglist.v.list[3].type == TYPE_OBJ && is_valid(arglist.v.list[3]))
         owner = arglist.v.list[3].v.obj;
 
-	if ((progr != owner && !is_wizard(progr))
+    if ((progr != owner && !is_wizard(progr))
 		 || (arglist.v.list[2].type == TYPE_OBJ
 		     && valid(arglist.v.list[2].v.obj)
 		     && !db_object_allows(arglist.v.list[2], progr, FLAG_FERTILE))) {
@@ -482,13 +483,14 @@ bf_recreate(Var arglist, Byte next, void *vdata, Objid progr)
 		return make_error_pack(E_INVARG);
 	    }
 
-	    data = (Var *)alloc_data(sizeof(Var));
-	    *data = var_ref(r);
-
 	    free_var(arglist);
 
         r.type = TYPE_OBJ;
         r.v.obj = oid;
+
+        data = (Var *)alloc_data(sizeof(Var));
+	    *data = var_ref(r);
+
 	    e = call_verb(oid, "initialize", r, new_list(0), 0);
 	    /* e will not be E_INVIND */
 
@@ -530,7 +532,7 @@ bf_create_read(void)
     else
 	return 0;
 }
-
+
 static package
 bf_chparent_chparents(Var arglist, Byte next, void *vdata, Objid progr)
 {				/* (OBJ obj, OBJ|LIST what, LIST anon) */
@@ -701,7 +703,7 @@ bf_descendants(Var arglist, Byte next, void *vdata, Objid progr)
 	return make_var_pack(r);
     }
 }
-
+
 static int
 move_to_nothing(Objid oid)
 {
@@ -742,7 +744,7 @@ get_first(Objid oid, int (*for_all) (Objid, int (*)(void *, Objid), void *))
 }
 
 static package
-bf_destroy(Var arglist, Byte func_pc, void *vdata, Objid progr)
+bf_recycle(Var arglist, Byte func_pc, void *vdata, Objid progr)
 {				/* (OBJ|ANON object) */
     Var *data = (Var *)vdata;
     enum error e;
@@ -779,7 +781,7 @@ bf_destroy(Var arglist, Byte func_pc, void *vdata, Objid progr)
 	data = (Var *)alloc_data(sizeof(Var));
 	*data = var_ref(obj);
 	args = new_list(0);
-	e = call_verb(obj.is_obj() ? obj.v.obj : NOTHING, "pre_destroy", obj, args, 0);
+	e = call_verb(obj.is_obj() ? obj.v.obj : NOTHING, "recycle", obj, args, 0);
 	/* e != E_INVIND */
 
 	if (e == E_NONE) {
@@ -884,20 +886,20 @@ bf_destroy(Var arglist, Byte func_pc, void *vdata, Objid progr)
 	}
     }
 
-    panic_moo("Can't happen in bf_destroy");
+    panic_moo("Can't happen in bf_recycle");
     return no_var_pack();
 }
 
 static void
-bf_destroy_write(void *vdata)
+bf_recycle_write(void *vdata)
 {
     Objid *data = (Objid *)vdata;
 
-    dbio_printf("bf_destroy data: oid = %d, cont = 0\n", *data);
+    dbio_printf("bf_recycle data: oid = %d, cont = 0\n", *data);
 }
 
 static void *
-bf_destroy_read(void)
+bf_recycle_read(void)
 {
     Objid *data = (Objid *)alloc_data(sizeof(*data));
     int dummy;
@@ -908,13 +910,13 @@ bf_destroy_read(void)
      * suppressed assignments are not counted in determining the returned value
      * of `scanf'...
      */
-    if (dbio_scanf("bf_destroy data: oid = %" PRIdN ", cont = %" PRIdN "\n",
+    if (dbio_scanf("bf_recycle data: oid = %" PRIdN ", cont = %" PRIdN "\n",
 		   data, &dummy) == 2)
 	return data;
     else
 	return 0;
 }
-
+
 static package
 bf_players(Var arglist, Byte next, void *vdata, Objid progr)
 {				/* () */
@@ -1021,7 +1023,58 @@ bf_isa(Var arglist, Byte next, void *vdata, Objid progr)
     return ret;
 }
 
-Var nothing;			/* useful constant */
+static package
+bf_clear_ancestor_cache(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    free_var(arglist);
+
+    if (!is_wizard(progr))
+	return make_error_pack(E_PERM);
+
+    db_clear_ancestor_cache();
+    return no_var_pack();
+}
+
+    static package
+bf_recycled_objects(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    free_var(arglist);
+    Var ret = new_list(db_recycled_object_count());
+    Objid max_obj = db_last_used_objid() + 1;
+
+    for (Objid x = 0, count = 1; x < max_obj; x++) {
+        if (!valid(x))
+            ret.v.list[count++] = Var::new_obj(x);
+    }
+
+    return make_var_pack(ret);
+}
+
+    static package
+bf_next_recycled_object(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Objid i_obj = (arglist.v.list[0].v.num == 1 ? arglist.v.list[1].v.obj : 0);
+    Objid max_obj = db_last_used_objid() + 1;
+    free_var(arglist);
+
+    if (i_obj > max_obj || i_obj < 0)
+	return make_error_pack(E_INVARG);
+    else if (!db_recycled_object_count())		/* Don't even proceed if we have none */
+	return no_var_pack();
+
+    package ret = make_var_pack(Var::new_int(0));
+
+    for (; i_obj < max_obj; i_obj++) {
+	if (!valid(i_obj)) {
+		ret = make_var_pack(Var::new_obj(i_obj));
+		break;
+	}
+    }
+
+    return ret;
+}
+
+Var nothing;		/* useful constant */
 Var clear;			/* useful constant */
 Var none;			/* useful constant */
 
@@ -1041,8 +1094,8 @@ register_objects(void)
     register_function_with_read_write("recreate", 2, 3, bf_recreate,
 				      bf_create_read, bf_create_write,
 				      TYPE_OBJ, TYPE_OBJ, TYPE_OBJ);
-    register_function_with_read_write("destroy", 1, 1, bf_destroy,
-				      bf_destroy_read, bf_destroy_write,
+    register_function_with_read_write("recycle", 1, 1, bf_recycle,
+				      bf_recycle_read, bf_recycle_write,
 				      TYPE_ANY);
     register_function("object_bytes", 1, 1, bf_object_bytes, TYPE_ANY);
     register_function("valid", 1, 1, bf_valid, TYPE_ANY);
@@ -1066,4 +1119,9 @@ register_objects(void)
 				      bf_move_read, bf_move_write,
 				      TYPE_OBJ, TYPE_OBJ, TYPE_INT);
     register_function("isa", 2, 3, bf_isa, TYPE_ANY, TYPE_ANY, TYPE_INT);
+#ifdef USE_ANCESTOR_CACHE
+    register_function("clear_ancestor_cache", 0, 0, bf_clear_ancestor_cache);
+#endif
+    register_function("recycled_objects", 0, 0, bf_recycled_objects);
+    register_function("next_recycled_object", 0, 1, bf_next_recycled_object, TYPE_OBJ);
 }

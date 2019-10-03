@@ -259,10 +259,6 @@ typedef struct var_pair {
     Var b;
 } var_pair;
 
-#ifdef SHORT_ALPHA_VAR_POINTERS
-#pragma pointer_size restore
-#endif
-
 extern Var zero;		/* see numbers.c */
 extern Var nothing;		/* see objects.c */
 extern Var clear;		/* see objects.c */

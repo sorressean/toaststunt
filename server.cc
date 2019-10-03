@@ -84,6 +84,8 @@ static Checkpoint_Reason checkpoint_requested = CHKPT_OFF;
 
 static int checkpoint_finished = 0;	/* 1 = failure, 2 = success */
 
+static bool reopen_logfile_requested = false;
+
 typedef struct shandle {
     struct shandle *next, **prev;
     network_handle nhandle;
@@ -249,8 +251,8 @@ panic_moo(const char *message)
     log_command_history();
 
     if (in_child) {		/* We're a forked checkpointer */
-	errlog("Child shutting down parent via USR1 signal\n");
-	kill(parent_pid, SIGUSR1);
+	errlog("Child shutting down parent via INT signal\n");
+	kill(parent_pid, SIGINT);
 	_exit(1);
     }
     print_error_backtrace("server panic", output_to_log);
@@ -295,6 +297,13 @@ shutdown_signal(int sig)
 {
     shutdown_triggered = true;
     shutdown_message << "shutdown signal received";
+}
+
+static void
+logfile_signal(int sig)
+{
+    if (get_log_file())
+        reopen_logfile_requested = true;
 }
 
 static void
@@ -372,7 +381,7 @@ setup_signals(void)
 
     signal(SIGINT, shutdown_signal);
     signal(SIGTERM, shutdown_signal);
-    signal(SIGUSR1, shutdown_signal);	/* remote shutdown signal */
+    signal(SIGUSR1, logfile_signal);	    /* logfile reopen signal */
     signal(SIGUSR2, checkpoint_signal);		/* remote checkpoint signal */
 
     signal(SIGCHLD, child_completed_signal);
@@ -541,10 +550,10 @@ recycle_anonymous_objects(void)
 	db_set_object_flag2(v, FLAG_RECYCLED);
 
         /* the best approximation I could think of */
-	run_server_task(-1, v, "pre_destroy", new_list(0), "", 0);
+	run_server_task(-1, v, "recycle", new_list(0), "", 0);
 
 	/* We'd like to run `db_change_parents()' to be consistent
-	 * with the pattern laid out in `bf_destroy()', but we can't
+	 * with the pattern laid out in `bf_recycle()', but we can't
 	 * because the object can be invalid at this point due to
 	 * changes in parentage.
 	 */
@@ -563,17 +572,17 @@ recycle_waifs(void)
 {
     /* This seems like a lot of work to go through just to get a destroy verb name.
      * Maybe it should just be a #define in waif.h? Ah well.*/
-    static char *waif_pre_destroy_verb = NULL;
-    if (!waif_pre_destroy_verb) {
-        waif_pre_destroy_verb = (char *)mymalloc(13, M_STRING);
-        waif_pre_destroy_verb[0] = WAIF_VERB_PREFIX;
-        strcpy(waif_pre_destroy_verb + 1, "pre_destroy");
+    static char *waif_recycle_verb = NULL;
+    if (!waif_recycle_verb) {
+        waif_recycle_verb = (char *)mymalloc(13, M_STRING);
+        waif_recycle_verb[0] = WAIF_VERB_PREFIX;
+        strcpy(waif_recycle_verb + 1, "recycle");
     }
 
     std::vector<Waif*> removals;
     for (auto &x: destroyed_waifs) {
         if (destroyed_waifs[x.first] == false) {
-            run_server_task(-1, Var::new_waif(x.first), waif_pre_destroy_verb, new_list(0), "", 0);
+            run_server_task(-1, Var::new_waif(x.first), waif_recycle_verb, new_list(0), "", 0);
             destroyed_waifs[x.first] = true;
             /* Flag it as destroyed. Now we just wait for the refcount to hit zero so we can free it. */
         }
@@ -684,6 +693,22 @@ main_loop(void)
 	    || checkpoint_requested != CHKPT_OFF)
 	    gc_collect();
 #endif
+
+    if (reopen_logfile_requested) {
+        reopen_logfile_requested = false;
+
+        FILE *new_log;
+        oklog("LOGFILE: Closing due to remote request signal.\n");
+
+        new_log = fopen(get_log_file_name(), "a");
+        if (new_log) {
+            fclose(get_log_file());
+            set_log_file(new_log);
+            oklog("LOGFILE: Reopening due to remote request signal.\n");
+        } else {
+            perror("Error reopening log file.");
+        }
+    }
 
 	if (checkpoint_requested != CHKPT_OFF) {
 	    if (checkpoint_requested == CHKPT_SIGNAL)
@@ -1639,6 +1664,7 @@ main(int argc, char **argv)
 	case 'l':		/* Specified log file */
 	    if (argc > 1) {
 		log_file = argv[1];
+        set_log_file_name(log_file);
 		argc--;
 		argv++;
 	    } else
@@ -1692,11 +1718,11 @@ main(int argc, char **argv)
 	set_log_file(stderr);
     }
 
-    applog(LOG_INFO1, "           _____                ______\n");
-    applog(LOG_INFO1, "  ___________  /_____  _________ __  /_\n");
-    applog(LOG_INFO1, "   __  ___/_  __/_  / / /__  __ \\_  __/\n");
-    applog(LOG_INFO1, "   _(__  ) / /_  / /_/ / _  / / // /_\n");
-    applog(LOG_INFO1, "   /____/  \\__/  \\__,_/  /_/ /_/ \\__/\n");
+    applog(LOG_INFO1, " _   __           _____                ______\n");
+    applog(LOG_INFO1, "( `^` ))  ___________  /_____  _________ __  /_\n");
+    applog(LOG_INFO1, "|     ||   __  ___/_  __/_  / / /__  __ \\_  __/\n");
+    applog(LOG_INFO1, "|     ||   _(__  ) / /_  / /_/ / _  / / // /_\n");
+    applog(LOG_INFO1, "'-----'`   /____/  \\__/  \\__,_/  /_/ /_/ \\__/\n");
     applog(LOG_INFO1, "\n");
 
     if ((emergency && (script_file || script_line))
@@ -1726,7 +1752,7 @@ main(int argc, char **argv)
 
     parent_pid = getpid();
 
-    applog(LOG_INFO1, "STARTING: Version %s (%" PRIdN "-bit) of the Stunt/LambdaMOO server\n", server_version, SERVER_BITS);
+    applog(LOG_INFO1, "STARTING: Version %s (%" PRIdN "-bit) of the ToastStunt/LambdaMOO server\n", server_version, SERVER_BITS);
     oklog("          (Using %s protocol)\n", network_protocol_name());
     oklog("          (Task timeouts measured in %s seconds.)\n",
 	  virtual_timer_available()? "server CPU" : "wall-clock");
@@ -1882,18 +1908,6 @@ bf_db_disk_size(Var arglist, Byte next, void *vdata, Objid progr)
 	return make_raise_pack(E_QUOTA, "No database file(s) available", zero);
     else
 	return make_var_pack(v);
-}
-
-static package
-bf_clear_ancestor_cache(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    free_var(arglist);
-
-    if (!is_wizard(progr))
-	return make_error_pack(E_PERM);
-
-    db_clear_ancestor_cache();
-    return no_var_pack();
 }
 
 #ifdef OUTBOUND_NETWORK
@@ -2344,7 +2358,4 @@ register_server(void)
     register_function("listeners", 0, 0, bf_listeners);
     register_function("buffered_output_length", 0, 1,
 		      bf_buffered_output_length, TYPE_OBJ);
-#ifdef USE_ANCESTOR_CACHE
-    register_function("clear_ancestor_cache", 0, 0, bf_clear_ancestor_cache);
-#endif
 }
