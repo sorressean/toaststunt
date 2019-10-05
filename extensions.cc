@@ -469,20 +469,21 @@ bf_reverse(Var arglist, Byte next, void *vdata, Objid progr)
     Var ret;
 
     if (arglist.v.list[1].type == TYPE_LIST) {
-        int elements = arglist.v.list[1].v.list[0].v.num;
+        const auto elements = arglist.v.list[1].v.list[0].v.num;
         ret = new_list(elements);
 
         for (size_t x = elements, y = 1; x >= 1; x--, y++) {
             ret.v.list[y] = var_ref(arglist.v.list[1].v.list[x]);
         }
     } else if (arglist.v.list[1].type == TYPE_STR) {
-        size_t len = memo_strlen(arglist.v.list[1].v.str);
+        const size_t len = memo_strlen(arglist.v.list[1].v.str);
         if (len <= 1) {
             ret = var_ref(arglist.v.list[1]);
         } else {
             char *new_str = (char *)mymalloc(len + 1, M_STRING);
+            const auto initial_str = arglist.v.list[1].v.str;
             for (size_t x = 0, y = len-1; x < len; x++, y--)
-                new_str[x] = arglist.v.list[1].v.str[y];
+                new_str[x] = initial_str[y];
             new_str[len] = '\0';
             ret.type = TYPE_STR;
             ret.v.str = new_str;
