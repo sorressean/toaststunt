@@ -72,9 +72,7 @@ bf_ftime(Var arglist, Byte next, void *vdata, Objid progr)
     clock_gettime(clock_type, &ts);
 #endif
 
-    Var r;
-    r.type = TYPE_FLOAT;
-    r.v.fnum = (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
+    Var r = Var::new_float((double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0);
 
     free_var(arglist);
     return make_var_pack(r);
@@ -89,10 +87,11 @@ void locate_by_name_thread_callback(Var arglist, Var *ret)
     object.type = TYPE_OBJ;
     std::vector<int> tmp;
 
-    int case_matters = arglist.v.list[0].v.num < 2 ? 0 : is_true(arglist.v.list[2]);
-    int string_length = memo_strlen(arglist.v.list[1].v.str);
+    const int case_matters = arglist.v.list[0].v.num < 2 ? 0 : is_true(arglist.v.list[2]);
+    const int string_length = memo_strlen(arglist.v.list[1].v.str);
 
-    for (int x = 1; x < db_last_used_objid(); x++)
+    const auto last_objid = db_last_used_objid();
+    for (int x = 1; x < last_objid; x++)
     {
         if (!valid(x))
             continue;
@@ -104,9 +103,9 @@ void locate_by_name_thread_callback(Var arglist, Var *ret)
     }
 
     *ret = new_list(tmp.size());
-    for (size_t x = 0; x < tmp.size(); x++) {
-        ret->v.list[x+1].type = TYPE_OBJ;
-        ret->v.list[x+1].v.obj = tmp[x];
+    const auto vector_size = tmp.size();
+    for (size_t x = 0; x < vector_size; x++) {
+        ret->v.list[x+1] = Var::new_obj(tmp[x]);
     }
 }
 
@@ -119,7 +118,7 @@ bf_locate_by_name(Var arglist, Byte next, void *vdata, Objid progr)
         return make_error_pack(E_PERM);
     }
 
-    char *human_string = 0;
+    char *human_string = nullptr;
     asprintf(&human_string, "locate_by_name: \"%s\"", arglist.v.list[1].v.str);
 
     return background_thread(locate_by_name_thread_callback, &arglist, human_string);
@@ -129,10 +128,10 @@ bf_locate_by_name(Var arglist, Byte next, void *vdata, Objid progr)
  * Args: LIST <values to sort>, [LIST <values to sort by>], [INT <natural sort ordering?>], [INT <reverse?>] */
 void sort_callback(Var arglist, Var *ret)
 {
-    int nargs = arglist.v.list[0].v.num;
-    int list_to_sort = (nargs >= 2 && arglist.v.list[2].v.list[0].v.num > 0 ? 2 : 1);
-    bool natural = (nargs >= 3 && is_true(arglist.v.list[3]));
-    bool reverse = (nargs >= 4 && is_true(arglist.v.list[4]));
+    const int nargs = arglist.v.list[0].v.num;
+    const int list_to_sort = (nargs >= 2 && arglist.v.list[2].v.list[0].v.num > 0 ? 2 : 1);
+    const bool natural = (nargs >= 3 && is_true(arglist.v.list[3]));
+    const bool reverse = (nargs >= 4 && is_true(arglist.v.list[4]));
 
     if (arglist.v.list[list_to_sort].v.list[0].v.num == 0) {
         *ret = new_list(0);
@@ -145,9 +144,10 @@ void sort_callback(Var arglist, Var *ret)
 
     // Create and sort a vector of indices rather than values. This makes it easier to sort a list by another list.
     std::vector<size_t> s(arglist.v.list[list_to_sort].v.list[0].v.num);
-    var_type type_to_sort = arglist.v.list[list_to_sort].v.list[1].type;
+    const var_type type_to_sort = arglist.v.list[list_to_sort].v.list[1].type;
 
-    for (int count = 1; count <= arglist.v.list[list_to_sort].v.list[0].v.num; count++)
+    const auto list_length = arglist.v.list[list_to_sort].v.list[0].v.num;
+    for (int count = 1; count <= list_length; count++)
     {
         var_type type = arglist.v.list[list_to_sort].v.list[count].type;
         if (type != type_to_sort || type == TYPE_LIST || type == TYPE_MAP || type == TYPE_ANON || type == TYPE_WAIF)
@@ -162,7 +162,7 @@ void sort_callback(Var arglist, Var *ret)
     struct VarCompare {
         VarCompare(const Var *Arglist, const bool Natural) : m_Arglist(Arglist), m_Natural(Natural) {}
 
-        bool operator()(size_t a, size_t b) const
+        bool operator()(const size_t a, const size_t b) const
         {
             Var lhs = m_Arglist[a];
             Var rhs = m_Arglist[b];
@@ -192,20 +192,19 @@ void sort_callback(Var arglist, Var *ret)
     *ret = new_list(s.size());
 
     if (reverse)
+        std::reverse(std::begin(s), std::end(s));
+        
+    int moo_list_pos = 0;
+    for (const auto &it:s)
     {
-        int moo_list_pos = 0;
-        for (auto it = s.rbegin(); it != s.rend(); ++it)
-            ret->v.list[++moo_list_pos] = var_ref(arglist.v.list[1].v.list[*it]);
-    } else {
-        for (size_t x = 0; x < s.size(); x++)
-            ret->v.list[x+1] = var_ref(arglist.v.list[1].v.list[s[x]]);
+        ret->v.list[++moo_list_pos] = var_ref(arglist.v.list[1].v.list[it]);
     }
 }
 
     static package
 bf_sort(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    char *human_string = 0;
+    char *human_string = nullptr;
     asprintf(&human_string, "sorting %" PRIdN " element list", arglist.v.list[1].v.list[0].v.num);
 
     return background_thread(sort_callback, &arglist, human_string);
@@ -218,7 +217,8 @@ bf_distance(Var arglist, Byte next, void *vdata, Objid progr)
     double ret = 0.0, tmp = 0.0;
     int count;
 
-    for (count = 1; count <= arglist.v.list[1].v.list[0].v.num; count++)
+    const auto list_length = arglist.v.list[1].v.list[0].v.num;
+    for (count = 1; count <= list_length; count++)
     {
         if ((arglist.v.list[1].v.list[count].type != TYPE_INT && arglist.v.list[1].v.list[count].type != TYPE_FLOAT) || (arglist.v.list[2].v.list[count].type != TYPE_INT && arglist.v.list[2].v.list[count].type != TYPE_FLOAT))
         {
@@ -234,10 +234,7 @@ bf_distance(Var arglist, Byte next, void *vdata, Objid progr)
 
     free_var(arglist);
 
-    Var s;
-    s.type = TYPE_FLOAT;
-    s.v.fnum = sqrt(ret);
-
+    auto s = Var::new_float(sqrt(ret));
     return make_var_pack(s);
 }
 
@@ -435,10 +432,7 @@ bf_round(Var arglist, Byte next, void *vdata, Objid progr)
 
     free_var(arglist);
 
-    Var ret;
-    ret.type = TYPE_FLOAT;
-    ret.v.fnum = r;
-
+    Var ret = Var::new_float(r);
     return make_var_pack(ret);
 }
 
@@ -475,20 +469,21 @@ bf_reverse(Var arglist, Byte next, void *vdata, Objid progr)
     Var ret;
 
     if (arglist.v.list[1].type == TYPE_LIST) {
-        int elements = arglist.v.list[1].v.list[0].v.num;
+        const auto elements = arglist.v.list[1].v.list[0].v.num;
         ret = new_list(elements);
 
         for (size_t x = elements, y = 1; x >= 1; x--, y++) {
             ret.v.list[y] = var_ref(arglist.v.list[1].v.list[x]);
         }
     } else if (arglist.v.list[1].type == TYPE_STR) {
-        size_t len = memo_strlen(arglist.v.list[1].v.str);
+        const size_t len = memo_strlen(arglist.v.list[1].v.str);
         if (len <= 1) {
             ret = var_ref(arglist.v.list[1]);
         } else {
             char *new_str = (char *)mymalloc(len + 1, M_STRING);
+            const auto initial_str = arglist.v.list[1].v.str;
             for (size_t x = 0, y = len-1; x < len; x++, y--)
-                new_str[x] = arglist.v.list[1].v.str[y];
+                new_str[x] = initial_str[y];
             new_str[len] = '\0';
             ret.type = TYPE_STR;
             ret.v.str = new_str;
@@ -506,7 +501,7 @@ static package
 bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var ret;
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     Var alist = arglist.v.list[1];
     Var index = (nargs < 2 ? Var::new_int(1) : arglist.v.list[2]);
 
@@ -523,7 +518,8 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
             return make_error_pack(E_RANGE);
         }
 
-        for (int x = 1; x <= index.v.list[0].v.num; x++) {
+        const auto index_list_length = index.v.list[0].v.num;
+        for (int x = 1; x <= index_list_length; x++) {
             if (index.v.list[x].type != TYPE_INT || index.v.list[x].v.num <= 0) {
                 free_var(arglist);
                 return make_error_pack((index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE));
@@ -540,7 +536,8 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
      * old fashioned way unless/until somebody wants to refactor this to do all the error checking ahead of time. */
     ret = new_list(0);
 
-    for (int x = 1; x <= alist.v.list[0].v.num; x++) {
+    const auto alist_length = alist.v.list[0].v.num;
+    for (int x = 1; x <= alist_length; x++) {
         Var element = alist.v.list[x];
         if ((element.type != TYPE_LIST && element.type != TYPE_STR && element.type != TYPE_MAP)
                 || ((element.type == TYPE_MAP && index.type != TYPE_STR) || (index.type == TYPE_STR && element.type != TYPE_MAP))) {
