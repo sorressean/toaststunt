@@ -501,7 +501,7 @@ static package
 bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var ret;
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     Var alist = arglist.v.list[1];
     Var index = (nargs < 2 ? Var::new_int(1) : arglist.v.list[2]);
 
@@ -518,7 +518,8 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
             return make_error_pack(E_RANGE);
         }
 
-        for (int x = 1; x <= index.v.list[0].v.num; x++) {
+        const auto index_list_length = index.v.list[0].v.num;
+        for (int x = 1; x <= index_list_length; x++) {
             if (index.v.list[x].type != TYPE_INT || index.v.list[x].v.num <= 0) {
                 free_var(arglist);
                 return make_error_pack((index.v.list[x].type != TYPE_INT ? E_INVARG : E_RANGE));
@@ -535,7 +536,8 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
      * old fashioned way unless/until somebody wants to refactor this to do all the error checking ahead of time. */
     ret = new_list(0);
 
-    for (int x = 1; x <= alist.v.list[0].v.num; x++) {
+    const auto alist_length = alist.v.list[0].v.num;
+    for (int x = 1; x <= alist_length; x++) {
         Var element = alist.v.list[x];
         if ((element.type != TYPE_LIST && element.type != TYPE_STR && element.type != TYPE_MAP)
                 || ((element.type == TYPE_MAP && index.type != TYPE_STR) || (index.type == TYPE_STR && element.type != TYPE_MAP))) {
