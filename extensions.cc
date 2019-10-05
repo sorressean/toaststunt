@@ -1,10 +1,6 @@
-#include <set>
 #include <math.h>           // sqrt, atan, round, etc
-#include "collection.h" //ismember
 #include "functions.h"      // register builtins
-#include "db_private.h"
 #include "log.h"            // oklog()
-#include "map.h"
 #include "utils.h"          // streams
 #include "numbers.h"        // new_float()
 #include "list.h"           // listappend and friends
@@ -27,8 +23,6 @@
 #include "dependencies/strnatcmp.c" // natural sorting
 #include "map.h"
 #include <string.h>         // strtok
-
-using namespace std;
 
 /**
  * On FreeBSD, CLOCK_MONOTONIC_RAW is simply CLOCK_MONOTONIC
@@ -818,176 +812,6 @@ bf_remove_ansi(Var arglist, Byte next, void *vdata, Objid progr)
 }
 //==============================================================
 
-<<<<<<< HEAD
-static void do_deep_contents(set<Objid> &objids, Var branch, Var parent, bool perform_isa=false)
-{
-    if (branch.type != TYPE_OBJ)
-        return;
-
-    auto objid = branch.v.obj;
-    if (!valid(objid))
-        return;
-    auto branch_obj = dbpriv_find_object(objid);
-    if (!branch_obj)
-        return;
-
-    if (perform_isa)
-        {
-            if (db_object_isa(branch, parent))
-                {
-                    objids.insert(branch.v.obj);
-                }
-        }
-    else
-        {
-            objids.insert(branch.v.obj);
-        }
-
-
-    for (int i = 1; i <= branch_obj->contents.v.list[0].v.num; ++i)
-        {
-            do_deep_contents(objids, branch_obj->contents.v.list[i], parent, perform_isa);
-        }
-
-    return;
-}
-
-/**
-* Deep_contents
-* This function retrieves recursively the contents of all objects and merges them into one set.
-* Pass as a second argument an object if you want an isa to be used.
-* For example, deep_contents(#1234, $player)
-* will retrieve all players nested in that object.
-* A few notes:
-* We use std::set to make sure that we are performing set operations.
-* This probably isn't needed; if you've got an object appearing in two different contents chances are something went wrong, but better safe than sorry.
-* This set also serves the duel purpose of constructing a set without having to call setadd multiple times on a MOO list.
-* This is much quicker because we can keep adding to this and then get the final count of elements as the size of the list, which requires less reallocation of the list itself.
-*/
-static package
-bf_deep_contents(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    bool perform_isa=false;
-    Objid what = arglist.v.list[1].v.obj;
-    if (!valid(what))
-        {
-            free_var(arglist);
-            return make_error_pack(E_INVIND);
-        }
-
-    Var parent;
-    if (arglist.v.list[0].v.num == 2)
-        {
-            parent = var_dup(arglist.v.list[2]);
-            perform_isa = true;
-        }
-    else
-        {
-            parent = var_ref(nothing);
-        }
-
-    set<Objid> objids;
-    do_deep_contents(objids, arglist.v.list[1], parent, perform_isa);
-    objids.erase(what);
-    Var array = new_list(0);
-    for (auto it: objids)
-        {
-            array = listappend(array, Var::new_obj(it));
-        }
-
-    free_var(arglist);
-    free_var(parent);
-    return make_var_pack(array);
-}
-
-/**
-*The next two builtins are going to help with things like this:
-* if (!(foo in (mapkeys(bar))))
-* etc.
-* Simplified down to if (!contains_key(bar, foo))
-* contains_value works the exact same way except that it looks for values.
-* There is not a performance improvement using in vs contains_key, they both have to iterate over the entire map.
-*/
-static int do_contains_key(Var key, Var value, void *data, int first)
-{
-    Var* search = (Var*)data;
-    return equality(key, *search, 1);
-}
-static package bf_contains_key(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    const int result = mapforeach(arglist.v.list[1], do_contains_key, &arglist.v.list[2]);
-    free_var(arglist);
-
-    Var ret = Var::new_int(result);
-    return make_var_pack(ret);
-}
-
-static int do_contains_value(Var key, Var value, void *data, int first)
-{
-    Var* search = (Var*)data;
-    return equality(value, *search, 1);
-}
-static package bf_contains_value(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    const int result = mapforeach(arglist.v.list[1], do_contains_value, &arglist.v.list[2]);
-    free_var(arglist);
-
-    Var ret = Var::new_int(result);
-    return make_var_pack(ret);
-}
-
-/**
-* Intersection, difference, union are all taken from Goblin's extension pack and modified.
-*/
-static package
-bf_intersection(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    for (int x = 2; x <= arglist.v.list[0].v.num; ++x)
-        {
-            if (arglist.v.list[x].type != TYPE_LIST)
-                {
-                    free_var(arglist);
-                    return make_error_pack(E_TYPE);
-                }
-        }
-
-    Var r = arglist.v.list[0].v.num ? var_dup(arglist.v.list[1]) : new_list(0);
-
-    if (arglist.v.list[0].v.num > 1)
-        {
-            int y = 0;
-            int x = 0;
-            for (x = 2; x <= arglist.v.list[0].v.num; x++)
-                {
-                    if (r.v.list[0].v.num < arglist.v.list[x].v.list[0].v.num)
-                        {
-                            for (y = 1; y <= r.v.list[0].v.num; y++)
-                                {
-                                    if (!ismember(r.v.list[y], arglist.v.list[x], 0))
-                                        {
-                                            r = listdelete(r, y);
-                                            y--;
-                                        }
-                                }
-                        }
-                    else
-                        {
-                            for (y = 1; y <= arglist.v.list[x].v.list[0].v.num; y++)
-                                {
-                                    if (!ismember(arglist.v.list[x].v.list[y], r, 0))
-                                        {
-                                            arglist.v.list[x] = listdelete(arglist.v.list[x], y);
-                                            y--;
-                                        }
-                                }
-                            free_var(r);
-                            r = var_dup(arglist.v.list[x]);
-                        }
-                }
-        }
-
-    free_var(arglist);
-=======
 #define STUPID_VERB_CACHE 1
 #ifdef STUPID_VERB_CACHE
 #include "db_tune.h"
@@ -1004,195 +828,10 @@ bf_verb_cache_stats(Var arglist, Byte next, void *vdata, Objid progr)
     }
     r = db_verb_cache_stats();
 
->>>>>>> upstream
     return make_var_pack(r);
 }
 
 static package
-<<<<<<< HEAD
-bf_diff(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    Var result = var_dup(arglist.v.list[1]);
-    int x, y;
-
-    for (x = 2; x <= arglist.v.list[0].v.num; x++)
-        {
-            if (arglist.v.list[x].type != TYPE_LIST)
-                {
-                    free_var(result);
-                    free_var(arglist);
-                    return make_error_pack(E_TYPE);
-                }
-            for (y = 1; y <= arglist.v.list[x].v.list[0].v.num; y++)
-                {
-                    result = setremove(result, arglist.v.list[x].v.list[y]);
-                }
-        }
-
-    free_var(arglist);
-    return make_var_pack(result);
-}
-
-static package
-bf_union(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    Var result = arglist.v.list[0].v.num ? var_dup(arglist.v.list[1]) : new_list(0);
-    int x, y;
-
-    for (x = 2; x <= arglist.v.list[0].v.num; x++)
-        {
-            if (arglist.v.list[x].type != TYPE_LIST)
-                {
-                    free_var(arglist);
-                    free_var(result);
-                    return make_error_pack(E_TYPE);
-                }
-            for (y = 1; y <= arglist.v.list[x].v.list[0].v.num; y++)
-                {
-                    result = setadd(result, arglist.v.list[x].v.list[y]);
-                }
-        }
-
-    free_var(arglist);
-    return make_var_pack(result);
-}
-
-/**
-* The following builtin is made to help combining of sets.
-* It replaces the following moo code (assuming s and t are both sets):
-* for i in (s)
-* t = setadd(t, i);
-* endfor
-* This is also much faster because we create the set before adding it to the moo list.
-*/
-static package
-bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    Var newList = list_dup(arglist.v.list[1]);
-//now add the second one.
-    for (int index = 1; index <= arglist.v.list[2].v.list[0].v.num; ++index)
-        {
-            if (!ismember(arglist.v.list[2].v.list[index], newList, 0))
-            {
-                Var element = var_ref(arglist.v.list[2].v.list[index]);
-                newList = listappend(newList, element);
-            }
-        }
-    free_var(arglist);
-    return make_var_pack(newList);
-}
-
-static package
-bf_list_reverse(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    const int length = arglist.v.list[1].v.list[0].v.num;
-    if (length <= 0)
-    {
-        free_var(arglist);
-        return make_error_pack(E_RANGE);
-    }
-
-    Var reversed = new_list(0);
-    for (int i = length; i >= 1; --i)
-    {
-        Var element = var_ref(arglist.v.list[1].v.list[i]);
-        reversed = listappend(reversed, element);
-    }
-
-    free_var(arglist);
-    return make_var_pack(reversed);
-}
-
-static package bf_bit_or(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    int a = arglist.v.list[1].v.num;
-    int b = arglist.v.list[2].v.num;
-    free_var(arglist);
-
-    return make_var_pack(Var::new_int(a|b));
-}
-static package bf_bit_and(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    int a = arglist.v.list[1].v.num;
-    int b = arglist.v.list[2].v.num;
-    free_var(arglist);
-
-    return make_var_pack(Var::new_int(a&b));
-}
-static package bf_bit_xor(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    int a = arglist.v.list[1].v.num;
-    int b = arglist.v.list[2].v.num;
-    free_var(arglist);
-
-    return make_var_pack(Var::new_int(a^b));
-}
-static package bf_bit_not(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    int a = arglist.v.list[1].v.num;
-    free_var(arglist);
-
-    return make_var_pack(Var::new_int(~a));
-}
-
-static Var
-list_assoc(Var vtarget, Var vlist, const int vindex)
-{
-    const int length = vlist.v.list[0].v.num;
-  for (int i = 1; i <= length; ++i) {
-    if (vlist.v.list[i].type == TYPE_LIST &&
-        vlist.v.list[i].v.list[0].v.num >= vindex &&
-        equality(vlist.v.list[i].v.list[vindex], vtarget, 0)) {
-      return var_dup(vlist.v.list[i]);
-    }
-  }
-  return new_list(0);
-}
-
-static int
-list_iassoc(Var vtarget, Var vlist, const int vindex)
-{
-    const int length = vlist.v.list[0].v.num;
-  for (int i = 1; i <= length; ++i) {
-    if (vlist.v.list[i].type == TYPE_LIST &&
-        vlist.v.list[i].v.list[0].v.num >= vindex &&
-        equality(vlist.v.list[i].v.list[vindex], vtarget, 0)) {
-      return i;
-    }
-  }
-  return 0;
-}
-
-static package
-bf_iassoc(Var arglist, Byte next, void *vdata, Objid progr)
-{ /* (ANY, LIST[, INT]) */
-  const int index = (arglist.v.list[0].v.num == 3?arglist.v.list[3].v.num : 1);
-  if (index < 1) {
-    free_var(arglist);
-    return make_error_pack(E_RANGE);
-  }
-
-  Var r = Var::new_int(list_iassoc(arglist.v.list[1], arglist.v.list[2], index));
-
-  free_var(arglist);
-  return make_var_pack(r);
-} /* end bf_listiassoc() */
-
-static package
-bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
-{ /* (ANY, LIST[, INT]) */
-  const int index = (arglist.v.list[0].v.num == 3 ? arglist.v.list[3].v.num : 1);
-  if (index < 1) {
-    free_var(arglist);
-    return make_error_pack(E_RANGE);
-  }
-
-  Var r = list_assoc(arglist.v.list[1], arglist.v.list[2], index);
-
-  free_var(arglist);
-  return make_var_pack(r);
-}
-=======
 bf_log_cache_stats(Var arglist, Byte next, void *vdata, Objid progr)
 {
     free_var(arglist);
@@ -1205,7 +844,6 @@ bf_log_cache_stats(Var arglist, Byte next, void *vdata, Objid progr)
     return no_var_pack();
 }
 #endif
->>>>>>> upstream
 
     void
 register_extensions()
@@ -1224,30 +862,11 @@ register_extensions()
     register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_ANY);
     register_function("occupants", 1, 3, bf_occupants, TYPE_LIST, TYPE_ANY, TYPE_INT);
     register_function("locations", 1, 1, bf_locations, TYPE_OBJ);
-<<<<<<< HEAD
-    register_function("chr", 1, 1, bf_chr, TYPE_INT);
-    register_function("deep_contents", 1, 2, bf_deep_contents, TYPE_OBJ, TYPE_OBJ);
-    register_function("contains_key", 2, 2, bf_contains_key, TYPE_MAP, TYPE_ANY);
-    register_function("contains_value", 2, 2, bf_contains_value, TYPE_MAP, TYPE_ANY);
-    register_function("intersection", 1, -1, bf_intersection, TYPE_LIST);
-    register_function("difference", 1, -1, bf_diff, TYPE_LIST);
-    register_function("union", 1, -1, bf_union, TYPE_LIST);
-    register_function("slice", 1, 2, bf_slice, TYPE_LIST, TYPE_INT);
-    register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
-    register_function("listreverse", 1, 1, bf_list_reverse, TYPE_LIST);
-    register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
-    register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
-    register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
-    register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
-=======
->>>>>>> upstream
     register_function("sort", 1, 4, bf_sort, TYPE_LIST, TYPE_LIST, TYPE_INT, TYPE_INT);
     register_function("all_members", 2, 2, bf_all_members, TYPE_ANY, TYPE_LIST);
     // ======== ANSI ===========
     register_function("parse_ansi", 1, 1, bf_parse_ansi, TYPE_STR);
     register_function("remove_ansi", 1, 1, bf_remove_ansi, TYPE_STR);
-    register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
-    register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
 #ifdef STUPID_VERB_CACHE
     register_function("log_cache_stats", 0, 0, bf_log_cache_stats);
     register_function("verb_cache_stats", 0, 0, bf_verb_cache_stats);
