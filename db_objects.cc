@@ -41,7 +41,6 @@
 static Object **objects;
 static Num num_objects = 0;
 static Num max_objects = 0;
-static Num recycled_objects = 0;
 
 static unsigned int nonce = 0;
 
@@ -168,8 +167,6 @@ dbpriv_new_object(Num new_objid)
         ensure_new_object();
         new_objid = num_objects;
         num_objects++;
-    } else {
-        recycled_objects--;
     }
 
     o = objects[new_objid] = (Object *)mymalloc(sizeof(Object), M_OBJECT);
@@ -197,7 +194,6 @@ dbpriv_new_recycled_object(void)
 {
     ensure_new_object();
     num_objects++;
-    recycled_objects++;
 }
 
 void
@@ -210,7 +206,7 @@ db_init_object(Object *o)
     o->children = new_list(0);
 
     o->location = var_ref(nothing);
-    o->last_move = new_map();
+    o->last_move = (clear_last_move ? var_ref(zero) : new_map());
     o->contents = new_list(0);
 
     o->propval = 0;
@@ -295,7 +291,6 @@ db_destroy_object(Objid oid)
 
     myfree(objects[oid], M_OBJECT);
     objects[oid] = 0;
-    recycled_objects++;
 }
 
 Var
@@ -483,7 +478,6 @@ db_renumber_object(Objid old)
 	    o = objects[_new] = objects[old];
 	    objects[old] = 0;
 	    objects[_new]->id = _new;
-        recycled_objects--;
 
 	    /* Fix up the parents/children hierarchy and the
 	     * location/contents hierarchy.
@@ -1051,6 +1045,9 @@ db_for_all_contents(Objid oid, int (*func) (void *, Objid), void *data)
 void
 db_change_location(Objid oid, Objid new_location, int position)
 {
+    static Var time_key = str_dup_to_var("time");
+    static Var source_key = str_dup_to_var("source");
+
     Var me = Var::new_obj(oid);
 
     Objid old_location = objects[oid]->location.v.obj;
@@ -1066,18 +1063,19 @@ db_change_location(Objid oid, Objid new_location, int position)
     }
 
     free_var(objects[oid]->location);
-    if (objects[oid]->last_move.type != TYPE_MAP) {
-        free_var(objects[oid]->last_move);
-        objects[oid]->last_move = new_map();
-    }
-
     objects[oid]->location = Var::new_obj(new_location);
+    if (!clear_last_move) {
+        if (objects[oid]->last_move.type != TYPE_MAP) {
+            free_var(objects[oid]->last_move);
+            objects[oid]->last_move = new_map();
+        }
 
     Var last_move = objects[oid]->last_move;
-    last_move = mapinsert(last_move, str_dup_to_var("time"), Var::new_int(time(0)));
-    last_move = mapinsert(last_move, str_dup_to_var("source"), Var::new_obj(old_location));
+    last_move = mapinsert(last_move, var_ref(time_key), Var::new_int(time(0)));
+    last_move = mapinsert(last_move, var_ref(source_key), Var::new_obj(old_location));
 
     objects[oid]->last_move = last_move;
+    }
 
 }
 
@@ -1158,12 +1156,6 @@ void
 dbpriv_set_all_users(Var v)
 {
     all_users = v;
-}
-
-Num
-db_recycled_object_count()
-{
-    return recycled_objects;
 }
 
 int

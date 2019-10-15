@@ -19,6 +19,15 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/time.h>       // getrusage
+#include <sys/resource.h>   // getrusage
+#if !defined(__FreeBSD__) && !defined(__MACH__)
+#include <sys/sysinfo.h>    // CPU usage
+#endif
+#ifdef __MACH__
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#endif
 
 #include <string>
 #include <sstream>
@@ -62,6 +71,7 @@
 #include "version.h"
 #include "net_multi.h"  /* rewrite connection name */
 #include "waif.h" /* destroyed_waifs */
+#include "curl.h" /* curl shutdown */
 
 extern "C" {
 #include "dependencies/linenoise.h"
@@ -85,6 +95,8 @@ static Checkpoint_Reason checkpoint_requested = CHKPT_OFF;
 static int checkpoint_finished = 0;	/* 1 = failure, 2 = success */
 
 static bool reopen_logfile_requested = false;
+
+bool clear_last_move = false;
 
 typedef struct shandle {
     struct shandle *next, **prev;
@@ -1698,6 +1710,9 @@ main(int argc, char **argv)
         } else
             argc = 0;
         break;
+	case 'm':		/* clear last move */
+        clear_last_move = true;
+	    break;
     default:
 	    argc = 0;		/* Provoke usage message below */
 	}
@@ -1728,13 +1743,14 @@ main(int argc, char **argv)
     if ((emergency && (script_file || script_line))
 	|| !db_initialize(&argc, &argv)
 	|| !network_initialize(argc, argv, &desc)) {
-	fprintf(stderr, "Usage: %s [-e] [-f script-file] [-c script-line] [-l log-file] [-w waif-type] %s %s\n",
+	fprintf(stderr, "Usage: %s [-e] [-f script-file] [-c script-line] [-l log-file] [-m] [-w waif-type] %s %s\n",
 		this_program, db_usage_string(), network_usage_string());
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "\t-e\t\temergency wizard mode\n");
 	fprintf(stderr, "\t-f\t\tfile to load and pass to `#0:do_start_script()'\n");
 	fprintf(stderr, "\t-c\t\tline to pass to `#0:do_start_script()'\n");
 	fprintf(stderr, "\t-l\t\toptional log file\n");
+    fprintf(stderr, "\t-m\t\tclear the last_move builtin property on all objects\n");
     fprintf(stderr, "\t-w\t\tconvert waifs from the specified type to the proper type (check with typeof(waif) in your MOO)\n\n");
 	fprintf(stderr, "The emergency mode switch (-e) may not be used with either the file (-f) or line (-c) options.\n\n");
 	fprintf(stderr, "Both the file and line options may be specified. Their order on the command line determines the order of their invocation.\n\n");
@@ -1810,6 +1826,7 @@ main(int argc, char **argv)
 
     db_clear_ancestor_cache();
     sqlite_shutdown();
+    curl_shutdown();
 
     free_str(this_program);
 
@@ -1865,6 +1882,139 @@ bf_reset_max_object(Var arglist, Byte next, void *vdata, Objid progr)
     db_reset_last_used_objid();
     return no_var_pack();
 }
+
+/* Returns total memory usage, resident set size, shared pages, text/code, and data + stack. */
+    static package
+bf_memory_usage(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    // LINUX: Values are returned in pages. To get KB, multiply by 4.
+    // macOS: The only value available is the resident set size, which is returned in bytes.
+    free_var(arglist);
+
+    long double size = 0.0, resident = 0.0, share = 0.0, text = 0.0, lib = 0.0, data = 0.0, dt = 0.0;
+
+#ifdef __MACH__
+    // macOS doesn't have /proc, so we have to search elsewhere.
+    struct mach_task_basic_info info;
+    mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, (task_info_t)&info, &infoCount) == KERN_SUCCESS)
+        resident = (size_t)info.resident_size;
+    else
+        return make_error_pack(E_FILE);
+#else
+    FILE *f = fopen("/proc/self/statm", "r");
+
+    if (!f)
+        return make_error_pack(E_FILE);
+
+    if (fscanf(f, "%Lf %Lf %Lf %Lf %Lf %Lf %Lf",
+                &size, &resident, &share, &text, &lib, &data, &dt) != 7)
+    {
+        fclose(f);
+        return make_error_pack(E_NACC);
+    }
+
+    fclose(f);
+#endif
+
+    Var s = new_list(5);
+    s.v.list[1].type = TYPE_FLOAT;
+    s.v.list[2].type = TYPE_FLOAT;
+    s.v.list[3].type = TYPE_FLOAT;
+    s.v.list[4].type = TYPE_FLOAT;
+    s.v.list[5].type = TYPE_FLOAT;
+    s.v.list[1].v.fnum = size;           // Total program size
+    s.v.list[2].v.fnum = resident;       // Resident set size
+    s.v.list[3].v.fnum = share;          // Shared pages from shared mappings
+    s.v.list[4].v.fnum = text;           // Text (code)
+    s.v.list[5].v.fnum = data;           // Data + stack
+
+    return make_var_pack(s);
+}
+
+/* Return resource usage information from the operating system.
+ * Values returned: {{load averages}, user time, system time, page reclaims, page faults, block input ops, block output ops, voluntary context switches, involuntary context switches, signals received
+ * Divide load averages by 65536. */
+    static package
+bf_usage(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    free_var(arglist);
+    if (!is_wizard(progr))
+        return make_error_pack(E_PERM);
+
+    Var r = new_list(9);
+    Var cpu = new_list(3);
+
+    // Setup all of our types ahead of time.
+    int x = 0;
+    for (x = 3; x <= r.v.list[0].v.num; x++)
+        r.v.list[x].type = TYPE_INT;
+
+    for (x = 1; x <= 3; x++)
+        cpu.v.list[x] = Var::new_int(0); //initialize to all 0
+
+#if defined(__FreeBSD__)
+    struct sysinfo sys_info;
+    int info_ret = sysinfo(&sys_info);
+
+    for (x = 0; x < 3; x++)
+        cpu.v.list[x+1].v.num = (info_ret != 0 ? 0 : sys_info.loads[x]);
+#else
+    /*** Begin CPU load averages ***/
+#ifdef __MACH__
+    struct loadavg load;
+    size_t size = sizeof(load);
+    if (sysctlbyname("vm.loadavg", &load, &size, 0, 0) != -1) {
+        for (x = 0; x < 3; x++)
+            cpu.v.list[x+1].v.num = load.ldavg[x];
+    }
+#endif
+#endif
+
+    /*** Now rusage ***/
+    struct rusage usage;
+    getrusage(RUSAGE_SELF, &usage);
+
+    r.v.list[1].type = TYPE_FLOAT;
+    r.v.list[2].type = TYPE_FLOAT;
+    r.v.list[1].v.fnum =(double)usage.ru_utime.tv_sec + (double)usage.ru_utime.tv_usec / CLOCKS_PER_SEC;
+    r.v.list[2].v.fnum = (double)usage.ru_stime.tv_sec + (double)usage.ru_stime.tv_usec / CLOCKS_PER_SEC;
+    r.v.list[3].v.num = usage.ru_minflt;
+    r.v.list[4].v.num = usage.ru_majflt;
+    r.v.list[5].v.num = usage.ru_inblock;
+    r.v.list[6].v.num = usage.ru_oublock;
+    r.v.list[7].v.num = usage.ru_nvcsw;
+    r.v.list[8].v.num = usage.ru_nivcsw;
+    r.v.list[9].v.num = usage.ru_nsignals;
+
+    // Add in our load averages.
+    r = listinsert(r, cpu, 1);
+    return make_var_pack(r);
+}
+
+/* Unceremoniously exit the server, creating a panic dump of the database. */
+    static package
+bf_panic(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const char *msg;
+
+    if(!is_wizard(progr)) {
+        free_var(arglist);
+        return make_error_pack(E_PERM);
+    }
+
+    if(arglist.v.list[0].v.num) {
+        msg=str_dup(arglist.v.list[1].v.str);
+    } else {
+        msg="";
+    }
+
+    free_var(arglist);
+    panic_moo(msg);
+
+    return make_error_pack(E_NONE);
+}
+
 
 static package
 bf_shutdown(Var arglist, Byte next, void *vdata, Objid progr)
@@ -2334,6 +2484,9 @@ register_server(void)
     register_function("renumber", 1, 1, bf_renumber, TYPE_OBJ);
     register_function("reset_max_object", 0, 0, bf_reset_max_object);
     register_function("process_id", 0, 0, bf_process_id);
+    register_function("memory_usage", 0, 0, bf_memory_usage);
+    register_function("usage", 0, 0, bf_usage);
+    register_function("panic", 0, 1, bf_panic, TYPE_STR);
     register_function("shutdown", 0, 1, bf_shutdown, TYPE_STR);
     register_function("dump_database", 0, 0, bf_dump_database);
     register_function("db_disk_size", 0, 0, bf_db_disk_size);

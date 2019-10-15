@@ -1,4 +1,4 @@
-#include "extension-background.h"
+#include "background.h"
 #include "bf_register.h"
 #include "my-unistd.h"                  // sleep()
 #include "storage.h"                    // myfree, mymalloc
@@ -8,6 +8,7 @@
 #include "list.h"                       // listappend
 #include "net_multi.h"                  // network_fd shenanigans
 #include "log.h"                        // errlog
+#include "map.h"
 
 /*
   A general-purpose extension for doing work in separate threads. The entrypoint (background_thread)
@@ -171,6 +172,22 @@ void deallocate_background_waiter(background_waiter *waiter)
         next_background_handle = 1;
 }
 
+/* Since threaded functions can only return Vars, not packages, we instead
+ * create and return an 'error map'. Which is just a map with the keys:
+ * error, which is an error type, and message, which is the error string. */
+void make_error_map(enum error error_type, const char *msg, Var *ret)
+{
+    static Var error_key = str_dup_to_var("error");
+    static Var message_key = str_dup_to_var("message");
+
+    Var err;
+    err.type = TYPE_ERR;
+    err.v.err = error_type;
+
+    *ret = new_map();
+    *ret = mapinsert(*ret, var_ref(error_key), err);
+    *ret = mapinsert(*ret, var_ref(message_key), str_dup_to_var(msg));
+}
 /********************************************************************************************************/
 
 static package
@@ -220,7 +237,7 @@ bf_thread_info(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_background_test(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    char *human_string = 0;
+    char *human_string = nullptr;
     asprintf(&human_string, "background_test suspending for %" PRIdN " with string \"%s\"", arglist.v.list[2].v.num, arglist.v.list[1].v.str);
     return background_thread(background_test_callback, &arglist, human_string);
 }

@@ -189,7 +189,6 @@
 #undef HAVE_WAIT3
 #undef HAVE_SIGEMPTYSET
 #undef HAVE_SIGPROCMASK
-#undef HAVE_SIGSETMASK
 #undef HAVE_SIGRELSE
 
 /* A good source of randomness is a prerequisite for many things,
@@ -405,5 +404,6 @@ typedef unsigned char uint8_t;
 
 #undef HAS_ARGON2
 #undef HAS_ASPELL
+#undef HAS_CURL
 #undef USING_REL
 #endif /* !Config_H */

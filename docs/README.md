@@ -19,7 +19,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 
 ## Features
 
-- SQLite [functions: sqlite_open(), sqlite_close(), sqlite_handle(), sqlite_info(), sqlite_query(), sqlite_execute()]
+- SQLite [functions: sqlite_open(), sqlite_close(), sqlite_handle(), sqlite_info(), sqlite_query(), sqlite_execute(), sqlite_limit()].
 - Perl Compatible Regular Expressions (PCRE) [functions: pcre_match(), pcre_replace]
 - Simplex noise (implemented but never actually tested / used)
 - [Argon2id hashing](https://github.com/P-H-C/phc-winner-argon2) [functions: argon2(), argon2_verify()]
@@ -77,6 +77,8 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - DEFAULT_LAG_THRESHOLD (the number of seconds allowed before a task is considered laggy and triggers #0:handle_lagging_task)
     - SAVE_FINISHED_TASKS (enable the finished_tasks function and define how many tasks get saved by default) [default can be overridden with $server_options.finished_tasks_limit]
     - THREAD_ARGON2 (enable threading of Argon2 functions)
+    - TOTAL_BACKGROUND_THREADS (number of threads created at runtime)
+    - DEFAULT_THREAD_MODE (default mode of threaded functions)
 
 - Additional builtins:
     - frandom (random floats)
@@ -108,6 +110,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - next_recycled_object (return the next object available for recreation)
     - reverse (reverse lists)
     - all_members (return the indices of all instances of a type in a list)
+    - curl (return webpage as string)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name
@@ -126,6 +129,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - New argument to move() to effectively listinsert() the object into the destination's .contents
     - New argument to is_member() for controlling case sensitivity of equality comparisons. No third argument or a true value results in standard functionality; a false value as the third argument results in case not mattering at all
     - SIGUSR1 will close and reopen the logfile, allowing it to be rotated without restarting the server.
+    - '-m' command line option to clear all last_move properties in your database (and not set them again for the lifetime of the process).
 
 ## Build Instructions
 ### **Debian/Ubuntu**

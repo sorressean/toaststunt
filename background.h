@@ -7,10 +7,8 @@
 #include "dependencies/thpool.h"        // thread pool
 
 #define THREAD_MOO_VERSION      "2.5"   // Version of our MOO threading library.
-#define TOTAL_BACKGROUND_THREADS 2      // The total number of background threads running in the pool.
 #define MAX_BACKGROUND_THREADS  20      /* The total number threads allowed to be run from within the MOO.
                                            Can be overridden with $server_options.max_background_threads */
-#define DEFAULT_THREAD_MODE     true    // The default behavior of threaded functions without a call to set_thread_mode
 
 typedef struct background_waiter {
     vm the_vm;                          // Where we resume when we're done.
@@ -26,6 +24,7 @@ typedef struct background_waiter {
 // User-visible functions
 extern package background_thread(void (*callback)(Var, Var*), Var* data, char *human_title);
 extern bool can_create_thread();
+extern void make_error_map(enum error error_type, const char *msg, Var *ret);
 
 // Other helper functions
 void deallocate_background_waiter(background_waiter *waiter);

@@ -15,6 +15,8 @@
     Pavel@Xerox.Com
  *****************************************************************************/
 
+#include <vector>
+
 #include "collection.h"
 #include "db.h"
 #include "db_io.h"
@@ -28,6 +30,7 @@
 #include "structures.h"
 #include "utils.h"
 #include "log.h"
+#include "background.h"   // Threads
 
 static int
 controls(Objid who, Objid what)
@@ -1023,7 +1026,138 @@ bf_isa(Var arglist, Byte next, void *vdata, Objid progr)
     return ret;
 }
 
-static package
+/* Locate an object in the database by name more quickly than is possible in-DB.
+ * To avoid numerous list reallocations, we put everything in a vector and then
+ * transfer it over to a list when we know how many values we have. */
+void locate_by_name_thread_callback(Var arglist, Var *ret)
+{
+    Var name, object;
+    object.type = TYPE_OBJ;
+    std::vector<int> tmp;
+
+    const int case_matters = arglist.v.list[0].v.num < 2 ? 0 : is_true(arglist.v.list[2]);
+    const int string_length = memo_strlen(arglist.v.list[1].v.str);
+
+    const Objid last_objid = db_last_used_objid();
+    for (int x = 1; x < last_objid; x++)
+    {
+        if (!valid(x))
+            continue;
+
+        object.v.obj = x;
+        db_find_property(object, "name", &name);
+        if (strindex(name.v.str, memo_strlen(name.v.str), arglist.v.list[1].v.str, string_length, case_matters))
+            tmp.push_back(x);
+    }
+
+    *ret = new_list(tmp.size());
+    const auto vector_size = tmp.size();
+    for (size_t x = 0; x < vector_size; x++) {
+        ret->v.list[x+1] = Var::new_obj(tmp[x]);
+    }
+}
+
+    static package
+bf_locate_by_name(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_wizard(progr))
+    {
+        free_var(arglist);
+        return make_error_pack(E_PERM);
+    }
+
+    char *human_string = nullptr;
+    asprintf(&human_string, "locate_by_name: \"%s\"", arglist.v.list[1].v.str);
+
+    return background_thread(locate_by_name_thread_callback, &arglist, human_string);
+}
+
+static bool multi_parent_isa(const Var *object, const Var *parents)
+{
+    if (parents->type == TYPE_OBJ)
+        return db_object_isa(*object, *parents);
+
+    for (int y = 1; y <= parents->v.list[0].v.num; y++)
+        if (db_object_isa(*object, parents->v.list[y]))
+            return true;
+
+    return false;
+}
+
+/* Return a list of objects of parent, optionally with a player flag set.
+ * With only one argument, player flag is assumed to be the only condition.
+ * With two arguments, parent is the only condition.
+ * With three arguments, parent is checked first and then the player flag is checked.
+ * occupants(LIST objects, OBJ | LIST parent, ?INT player flag set)
+ */
+    static package
+bf_occupants(Var arglist, Byte next, void *vdata, Objid progr)
+{				/* (object) */
+    Var ret = new_list(0);
+    int nargs = arglist.v.list[0].v.num;
+    Var contents = arglist.v.list[1];
+    int content_length = contents.v.list[0].v.num;
+    bool check_parent = nargs == 1 ? false : true;
+    Var parent = check_parent ? arglist.v.list[2] : nothing;
+    bool check_player_flag = (nargs == 1 || (nargs > 2 && is_true(arglist.v.list[3])));
+
+    if (check_parent && !is_obj_or_list_of_objs(parent)) {
+        free_var(arglist);
+        return make_error_pack(E_TYPE);
+    }
+
+    for (int x = 1; x <= content_length; x++) {
+        Objid oid = contents.v.list[x].v.obj;
+        if (valid(oid)
+                && (!check_parent ? 1 : multi_parent_isa(&contents.v.list[x], &parent))
+                && (!check_player_flag || (check_player_flag && is_user(oid))))
+        {
+            ret = setadd(ret, contents.v.list[x]);
+        }
+    }
+
+    free_var(arglist);
+    return make_var_pack(ret);
+}
+
+/* Return a list of nested locations for an object.
+ * If base_object is specified, locations will stop at that object. Otherwise,
+ *   stop at $nothing (#-1).
+ * If check_parent is true, the base_object is assumed to be a parent and an
+ *   isa() check is performed.
+ * For objects in base_parent, this returns an empty list.
+ * locations(OBJ object, ?base_object, ?check_parent)
+ */
+    static package
+bf_locations(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Objid what = arglist.v.list[1].v.obj;
+    int nargs = arglist.v.list[0].v.num;
+    Objid base_obj = (nargs > 1 ? arglist.v.list[2].v.obj : 0);
+    Var base_obj_var = Var::new_obj(base_obj);
+    bool check_parent = (nargs > 2 ? is_true(arglist.v.list[3]) : false);
+
+    free_var(arglist);
+
+    if (!valid(what))
+        return make_error_pack(E_INVIND);
+
+    Var locs = new_list(0);
+
+    Objid loc = db_object_location(what);
+
+    while (valid(loc)) {
+        Var loc_var = Var::new_obj(loc);
+        if (base_obj && (check_parent ? db_object_isa(loc_var, base_obj_var) : loc == base_obj))
+            break;
+        locs = setadd(locs, loc_var);
+        loc = db_object_location(loc);
+    }
+
+    return make_var_pack(locs);
+}
+
+    static package
 bf_clear_ancestor_cache(Var arglist, Byte next, void *vdata, Objid progr)
 {
     free_var(arglist);
@@ -1039,12 +1173,18 @@ bf_clear_ancestor_cache(Var arglist, Byte next, void *vdata, Objid progr)
 bf_recycled_objects(Var arglist, Byte next, void *vdata, Objid progr)
 {
     free_var(arglist);
-    Var ret = new_list(db_recycled_object_count());
-    Objid max_obj = db_last_used_objid() + 1;
+    std::vector<Objid> tmp;
+    Objid max_obj = db_last_used_objid();
 
-    for (Objid x = 0, count = 1; x < max_obj; x++) {
+    for (Objid x = 0; x <= max_obj; x++) {
         if (!valid(x))
-            ret.v.list[count++] = Var::new_obj(x);
+            tmp.push_back(x);
+    }
+
+    Var ret = new_list(tmp.size());
+    for (size_t x = 1; x <= tmp.size(); x++) {
+        ret.v.list[x].type = TYPE_OBJ;
+        ret.v.list[x].v.obj = tmp[x-1];
     }
 
     return make_var_pack(ret);
@@ -1054,13 +1194,11 @@ bf_recycled_objects(Var arglist, Byte next, void *vdata, Objid progr)
 bf_next_recycled_object(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Objid i_obj = (arglist.v.list[0].v.num == 1 ? arglist.v.list[1].v.obj : 0);
-    Objid max_obj = db_last_used_objid() + 1;
+    Objid max_obj = db_last_used_objid();
     free_var(arglist);
 
     if (i_obj > max_obj || i_obj < 0)
 	return make_error_pack(E_INVARG);
-    else if (!db_recycled_object_count())		/* Don't even proceed if we have none */
-	return no_var_pack();
 
     package ret = make_var_pack(Var::new_int(0));
 
@@ -1119,6 +1257,9 @@ register_objects(void)
 				      bf_move_read, bf_move_write,
 				      TYPE_OBJ, TYPE_OBJ, TYPE_INT);
     register_function("isa", 2, 3, bf_isa, TYPE_ANY, TYPE_ANY, TYPE_INT);
+    register_function("locate_by_name", 1, 2, bf_locate_by_name, TYPE_STR, TYPE_INT);
+    register_function("occupants", 1, 3, bf_occupants, TYPE_LIST, TYPE_ANY, TYPE_INT);
+    register_function("locations", 1, 3, bf_locations, TYPE_OBJ, TYPE_OBJ, TYPE_INT);
 #ifdef USE_ANCESTOR_CACHE
     register_function("clear_ancestor_cache", 0, 0, bf_clear_ancestor_cache);
 #endif

@@ -65,7 +65,7 @@ AC_SEARCH_LIBS([t_open], [nsl nsl_s])
 AC_SEARCH_LIBS([crypt], [crypt crypt_d])
 AC_HAVE_HEADERS(unistd.h sys/cdefs.h stdlib.h tiuser.h machine/endian.h)
 AC_HAVE_FUNCS(remove rename poll select strerror strftime strtoul matherr)
-AC_HAVE_FUNCS(random lrand48 waitpid wait3 wait2 sigsetmask sigprocmask sigrelse)
+AC_HAVE_FUNCS(random lrand48 waitpid wait3 wait2 sigprocmask sigrelse)
 MOO_NDECL_FUNCS(ctype.h, tolower)
 MOO_NDECL_FUNCS(fcntl.h, fcntl)
 MOO_NDECL_FUNCS(netinet/in.h, htonl)
@@ -276,6 +276,15 @@ dnl ***************************************************************************
 		ELIBS="${ELIBS} `$PCRE_CONFIG --libs`"
 		CFLAGS+=" `$PCRE_CONFIG --cflags`"
 	fi
+
+ dnl ***************************************************************************
+    AC_CHECK_HEADER([curl/curl.h], [found_curl=yes], [found_curl=no])
+    if test "$found_curl" != "yes" ; then
+        AC_MSG_WARN([Curl could not be found.])
+    else
+        AC_DEFINE(HAS_CURL)
+        ELIBS="${ELIBS} -lcurl"
+    fi
 
  dnl ***************************************************************************
     AC_CHECK_HEADER([nettle/md5.h], [found_nettle=yes], [found_nettle=no])

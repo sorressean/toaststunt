@@ -8,24 +8,7 @@
 #include "utils.h"
 #include "log.h"
 #include "map.h"
-#include "extension-background.h"
-
-/* Since threaded functions can only return Vars, not packages, we instead
- * create and return an 'error map'. Which is just a map with the keys:
- * error, which is an error type, and message, which is the error string. */
-static void make_error_map(enum error error_type, const char *msg, Var *ret)
-{
-    static Var error_key = str_dup_to_var("error");
-    static Var message_key = str_dup_to_var("message");
-
-    Var err;
-    err.type = TYPE_ERR;
-    err.v.err = error_type;
-
-    *ret = new_map();
-    *ret = mapinsert(*ret, var_ref(error_key), err);
-    *ret = mapinsert(*ret, var_ref(message_key), str_dup_to_var(msg));
-}
+#include "background.h"
 
 void argon2_thread_callback(Var arglist, Var *r)
 {
@@ -77,7 +60,7 @@ bf_argon2(Var arglist, Byte next, void *vdata, Objid progr)
     }
 
 #ifdef THREAD_ARGON2
-    char *human_string = 0;
+    char *human_string = nullptr;
     asprintf(&human_string, "argon2");
 
     return background_thread(argon2_thread_callback, &arglist, human_string);
@@ -115,7 +98,7 @@ bf_argon2_verify(Var arglist, Byte next, void *vdata, Objid progr)
     }
 
 #ifdef THREAD_ARGON2
-    char *human_string = 0;
+    char *human_string = nullptr;
     asprintf(&human_string, "argon2_verify");
 
     return background_thread(argon2_verify_thread_callback, &arglist, human_string);

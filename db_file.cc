@@ -79,7 +79,6 @@ typedef struct Object4 {
 static Object4 **objects;
 static Num num_objects = 0;
 static Num max_objects = 0;
-static Num recycled_objects = 0;
 
 static void
 dbv4_ensure_new_object(void)
@@ -331,10 +330,17 @@ ng_read_object(int anonymous)
     o->owner = dbio_read_objid();
 
     o->location = dbio_read_var();
+
     if (dbio_input_version >= DBV_Last_Move)
+        if (clear_last_move) {
+            dbio_read_var();
+            o->last_move = var_ref(zero);
+        } else {
         o->last_move = dbio_read_var();
+        }
     else
         o->last_move = new_map();
+
     o->contents = dbio_read_var();
 
     o->parents = dbio_read_var();
@@ -797,7 +803,6 @@ v4_upgrade_objects()
 
     num_objects = 0;
     max_objects = 0;
-    recycled_objects = 0;
     myfree(objects, M_OBJECT_TABLE);
 
     oklog("UPGRADING objects to new structure ... finished.\n");
