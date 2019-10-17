@@ -1,5 +1,5 @@
 /******************************************************************************
-  Copyright (c) 1992, 1995, 1996 Xerox Corporation.  All rights reserved.
+	Copyright (c) 1992, 1995, 1996 Xerox Corporation.  All rights reserved.
   Portions of this code were written by Stephen White, aka ghond.
   Use and copying of this software and preparation of derivative works based
   upon this software are permitted.  Any distribution of this software or
@@ -261,7 +261,7 @@ complex_free_var(Var v)
 #ifdef ENABLE_GC
 /* Corresponds to `Increment' in Bacon and Rajan. */
 Var
-complex_var_ref(Var v)
+complex_var_ref(const Var& v)
 {
     switch (v.type) {
     case TYPE_STR:
@@ -291,7 +291,7 @@ complex_var_ref(Var v)
 }
 #else
 Var
-complex_var_ref(Var v)
+complex_var_ref(const Var& v)
 {
     switch (v.type) {
     case TYPE_STR:
@@ -319,7 +319,7 @@ complex_var_ref(Var v)
 #endif
 
 Var
-complex_var_dup(Var v)
+complex_var_dup( Var v)
 {
     switch (v.type) {
     case TYPE_STR:
@@ -375,7 +375,7 @@ var_refcount(Var v)
 }
 
 int
-is_true(Var v)
+is_true(const Var &v)
 {
     switch(v.type)
     {
@@ -400,9 +400,11 @@ is_true(Var v)
  * (nor other collection types, for the time being).
  */
 int
-compare(Var lhs, Var rhs, int case_matters)
+compare(const Var& lhs, const Var& rhs, const int case_matters)
 {
-    if (lhs.type == rhs.type) {
+    if (lhs.type != rhs.type)
+	return lhs.type - rhs.type;		
+
 	switch (lhs.type) {
 	case TYPE_INT:
 	    return lhs.v.num - rhs.v.num;
@@ -429,14 +431,14 @@ compare(Var lhs, Var rhs, int case_matters)
 	default:
 	    panic_moo("COMPARE: Invalid value type");
 	}
-    }
-    return lhs.type - rhs.type;
 }
 
 int
-equality(Var lhs, Var rhs, int case_matters)
+equality(const Var &lhs, const Var &rhs, const int case_matters)
 {
-    if (lhs.type == rhs.type) {
+    if (lhs.type != rhs.type)
+		return 0;
+		
 	switch (lhs.type) {
 	case TYPE_CLEAR:
 	    return 1;
@@ -472,7 +474,7 @@ equality(Var lhs, Var rhs, int case_matters)
 	default:
 	    panic_moo("EQUALITY: Unknown value type");
 	}
-    }
+    
     return 0;
 }
 

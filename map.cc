@@ -744,7 +744,7 @@ mapseek(Var map, Var key, Var *iter, int case_matters)
 }
 
 int
-mapequal(Var lhs, Var rhs, int case_matters)
+mapequal(const Var &lhs, const Var &rhs, const int case_matters)
 {
     rbtrav trav_lhs, trav_rhs;
     const rbnode *pnode_lhs = NULL, *pnode_rhs = NULL;

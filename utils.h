@@ -36,21 +36,21 @@ extern int verbcasecmp(const char *verb, const char *word);
 extern unsigned str_hash(const char *);
 
 extern void complex_free_var(Var);
-extern Var complex_var_ref(Var);
+extern Var complex_var_ref(const Var&);
 extern Var complex_var_dup(Var);
 extern int var_refcount(Var);
 
 extern void aux_free(Var);
 
 static inline void
-free_var(Var v)
+free_var(const Var &v)
 {
     if (v.is_complex())
 	complex_free_var(v);
 }
 
 static inline Var
-var_ref(Var v)
+var_ref(const Var& v)
 {
     if (v.is_complex())
 	return complex_var_ref(v);
@@ -59,7 +59,7 @@ var_ref(Var v)
 }
 
 static inline Var
-var_dup(Var v)
+var_dup(const Var& v)
 {
     if (v.is_complex())
 	return complex_var_dup(v);
@@ -67,9 +67,9 @@ var_dup(Var v)
 	return v;
 }
 
-extern int is_true(Var v);
-extern int compare(Var lhs, Var rhs, int case_matters);
-extern int equality(Var lhs, Var rhs, int case_matters);
+extern int is_true(const Var &v);
+extern int compare(const Var& lhs, const Var& rhs, const int case_matters);
+extern int equality(const Var &lhs, const Var &rhs, const int case_matters);
 
 extern void stream_add_strsub(Stream *, const char *, const char *, const char *, int);
 extern int strindex(const char *, int, const char *, int, int);

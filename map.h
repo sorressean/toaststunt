@@ -36,7 +36,7 @@ extern Var map_dup(Var map);
 extern Var mapinsert(Var map, Var key, Var value);
 extern const rbnode *maplookup(Var map, Var key, Var *value, int case_matters);
 extern int mapseek(Var map, Var key, Var *iter, int case_matters);
-extern int mapequal(Var lhs, Var rhs, int case_matters);
+extern int mapequal(const Var &lhs, const Var &rhs, const int case_matters);
 extern Num maplength(Var map);
 extern int mapempty(Var map);
 

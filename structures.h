@@ -172,27 +172,27 @@ struct Var {
     friend Var str_ref_to_var(const char *s);
 
     bool
-    is_complex() {
+    is_complex() const {
 	return TYPE_COMPLEX_FLAG & type;
     }
 
     bool
-    is_none() {
+    is_none() const {
 	return TYPE_NONE == type;
     }
 
     bool
-    is_collection() {
+    is_collection() const {
 	return TYPE_LIST == type || TYPE_MAP == type || TYPE_ANON == type;
     }
 
     bool
-    is_object() {
+    is_object() const {
 	return TYPE_OBJ == type || TYPE_ANON == type || TYPE_WAIF == type;
     }
 
     bool
-    is_int() {
+    is_int() const {
 	return TYPE_INT == type;
     }
 
