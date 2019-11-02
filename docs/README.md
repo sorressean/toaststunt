@@ -11,6 +11,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
   * [Debian/Ubuntu](#debian-ubuntu)
   * [REL/CentOS](#rel-centos)
   * [Gentoo](#gentoo)
+  * [FreeBSD](#freebsd)
   * [macOS](#macos)
 * [Function Documentation](https://github.com/lisdude/toaststunt-documentation)
 * [ToastCore](https://github.com/lisdude/toastcore)
@@ -26,7 +27,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 - 32-bit and 64-bit versions ($maxint and $minint set automatically)
 - #0:server_stopped support (called on shutdown or when a signal is received)
 
-- Waifs
+- Waifs:
     - Call :recycle on waifs when they're destroyed
     - A WAIF type (so typeof(some_waif) == WAIF)
     - Waif dict patch (so waif[x] and waif[x] = y will call the :_index and :_set_index verbs on the waif)
@@ -38,6 +39,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - background.cc (a library, of sorts, to make it easier to thread builtins)
     - Threaded builtins: sqlite_query, sqlite_execute, locate_by_name, sort, slice, argon2, argon2_verify
     - set_thread_mode (an argument of 0 will disable threading for all builtins in the current verb, 1 will re-enable, and no arguments will print the current mode)
+    - thread_pool() (database control over the the thread pools)
 
 - FileIO improvements:
     - Faster reading
@@ -59,10 +61,10 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 - Primitive types:
     - Support calling verbs on an object prototype ($obj_proto). Counterintuitively, this will only work for types of OBJ that are invalid. This can come in useful for un-logged-in connections (i.e. creating a set of convenient utilities for dealing with negative connections in-MOO).
 
-- Maps
+- Maps:
     - maphaskey() (check if a key exists in a map. Looks nicer than `!(x in mapkeys(map))` and is faster when not dealing with hundreds of keys)
 
-- Profiling
+- Profiling:
     - finished_tasks() (returns a list of the last X tasks to finish executing, including their total execution time) [see options.h below]
     - Set a maximum lag threshold (can be overridden with $server_options.task_lag_threshold) that, when exceeded, will make a note in the server log and call #0:handle_lagging_task with arguments: {callers, execution time}
 
@@ -79,6 +81,9 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - THREAD_ARGON2 (enable threading of Argon2 functions)
     - TOTAL_BACKGROUND_THREADS (number of threads created at runtime)
     - DEFAULT_THREAD_MODE (default mode of threaded functions)
+    - SAFE_RECYCLE (change ownership of everything an object owns before recycling it)
+    - NO_FORKED_LOOKUP (disable forking a separate thread for DNS lookups)
+    - TOTAL_DNS_THREADS (number of threads created at runtime for the name_lookup function)
 
 - Additional builtins:
     - frandom (random floats)
@@ -111,6 +116,8 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - reverse (reverse lists)
     - all_members (return the indices of all instances of a type in a list)
     - curl (return webpage as string)
+    - owned_objects (returns all valid objects owned by an object)
+    - name_lookup (perform a DNS name lookup)
 
 - Miscellaneous changes:
     - Numeric IP addresses in connection_name
@@ -128,16 +135,18 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - Support object lists in isa() as well as an optional third argument to return the matching parent rather than simply true or false
     - New argument to move() to effectively listinsert() the object into the destination's .contents
     - New argument to is_member() for controlling case sensitivity of equality comparisons. No third argument or a true value results in standard functionality; a false value as the third argument results in case not mattering at all
+    - Update random() to accept a second optional argument for setting the maximum value returned. Including the second argument will treat the first argument as the minimum.
     - SIGUSR1 will close and reopen the logfile, allowing it to be rotated without restarting the server.
     - '-m' command line option to clear all last_move properties in your database (and not set them again for the lifetime of the process).
+    - Build system is now CMake
 
 ## Build Instructions
 ### **Debian/Ubuntu**
 ```bash
-apt install build-essential bison gperf autoconf libsqlite3-dev libaspell-dev libpcre3-dev nettle-dev g++
-autoconf
-./configure
-make
+apt install build-essential bison gperf cmake libsqlite3-dev libaspell-dev libpcre3-dev nettle-dev g++ libcurl4-openssl-dev
+mkdir build && cd build
+cmake ../
+make -j2
 ```
 
 ### **REL/CentOS**
@@ -145,18 +154,25 @@ make
 yum group install -y "Development Tools"
 yum install -y sqlite-devel pcre-devel aspell-devel nettle-devel gperf centos-release-scl
 yum install -y devtoolset-7
-scl enable devtoolset-7 bash
-autoconf
-./configure
-make
+mkdir build && cd build
+cmake ../
+make -j2
 ```
 
 ### **Gentoo**
 ```bash
-emerge dev-db/sqlite app-text/aspell app-crypt/argon2
-autoconf
-./configure
-make
+emerge dev-db/sqlite app-text/aspell app-crypt/argon2 cmake
+mkdir build && cd build
+cmake ../
+make -j2
+```
+
+### **FreeBSD**
+```bash
+pkg install bison gperf gcc cmake sqlite3 aspell pcre nettle
+mkdir build && cd build
+cmake ../
+make -j2
 ```
 
 ### **macOS**
@@ -165,10 +181,10 @@ Installing dependencies requires [Homebrew](https://brew.sh/).
 Follow the instructions in the notes section below to compile and install Argon2. **NOTE**: In the last step, the install prefix should be changed to `/usr/local`
 
 ```bash
-brew install autoconf pcre aspell nettle
-autoconf
-./configure
-make
+brew install pcre aspell nettle cmake
+mkdir build && cd build
+cmake ../
+make -j2
 ```
 
 ## **Notes**
@@ -176,11 +192,25 @@ make
 Many distributions do not include [Libargon2](https://github.com/P-H-C/phc-winner-argon2) which is required for Argon2id password hashing. As such, it has been included as a Git submodule in this repository. To build it yourself, follow these steps:
 
 1. Inside of the ToastStunt repository, checkout all available submodules: `git submodule update --init`
-2. `cd dependencies/phc-winner-argon2`
+2. `cd src/dependencies/phc-winner-argon2`
 3. Build the library: `make`
 4. Install it on your system: `make install PREFIX=/usr`
 
 **NOTE**: macOS users should instead use `make install PREFIX=/usr/local` in step 4.
+
+**NOTE**: FreeBSD users should use `gmake`.
+
+### CMake Build Options
+There are a few build options available to developers:
+
+| Build Option | Effect                                                                       |
+|--------------|------------------------------------------------------------------------------|
+| Release      | Optimizations enabled, warnings disabled.                                    |
+| Debug        | Optimizations disabled, debug enabled.                                       |
+| Warn         | Optimizations enabled, warnings enabled. (Previous default behavior)         |
+| LeakCheck    | Minimal optimizations enabled, debug enabled, and address sanitizer enabled. |
+
+To change the build, use: `cmake -D CMAKE_BUILD_TYPE:STRING=BuildNameHere ../`
 
 ### Stuck seeding from /dev/random
 It can take some time to seed if your system is low on entropy. If you find startup hangs here, there are a couple of options:
