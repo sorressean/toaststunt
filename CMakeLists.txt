@@ -36,7 +36,7 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_C_STANDARD 99)
 
 # These flags are shared by the RELEASE and WARN build types.
-set(SHARED_COMPILE_FLAGS "-march=native -O3")
+set(SHARED_COMPILE_FLAGS "-march=native -Ofast -flto")
 
 # The default for non-developers: Optimization enabled and all warnings silenced.
 set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w")
@@ -198,6 +198,7 @@ set(src_CXXSRCS
     src/simplexnoise.cc
     src/argon2.cc
     src/spellcheck.cc
+	src/extension-sorressean.cc
     src/curl.cc)
 
 set(src_GRAMMAR
