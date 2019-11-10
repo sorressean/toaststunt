@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
 
 #include "config.h"
 #include "list.h"
@@ -325,8 +326,8 @@ pull_input(nhandle * h)
 
             if (stream_length(oob) > 0)
                 server_receive_line(h->shandle, reset_stream(oob), 1);
-            else
-                free_stream(oob);
+
+            free_stream(oob);
         }
         return 1;
     } else
