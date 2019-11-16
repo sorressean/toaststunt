@@ -286,7 +286,7 @@ set_nonblocking(int fd)
 }
 
 static enum error
-exec_waiter_suspender(vm the_vm, void *data)
+exec_waiter_suspender(vm& the_vm, void *data)
 {
     task_waiting_on_exec *tw = (task_waiting_on_exec *)data;
     enum error error = E_QUOTA;

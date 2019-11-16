@@ -802,8 +802,8 @@ do_intrinsic_command(tqueue * tq, Parsed_Command * pc)
  */
 static
 enum outcome
-run_server_task_setting_id(Objid player, Var what, const char *verb,
-			   Var args, const char *argstr, Var *result,
+run_server_task_setting_id(Objid player, const Var& what, const char *verb,
+			   Var& args, const char *argstr, Var *result,
 			   int *task_id);
 
 static int
@@ -833,7 +833,8 @@ do_command_task(tqueue * tq, char *command)
 		notify(tq->player, tq->output_prefix);
 
 	    args = parse_into_wordlist(command);
-	    if (run_server_task_setting_id(tq->player, Var::new_obj(tq->handler),
+		auto handler = Var::new_obj(tq->handler);
+	    if (run_server_task_setting_id(tq->player, handler,
 				           "do_command", args, command,
 				           &result, &(tq->last_input_task_id))
 		!= OUTCOME_DONE
@@ -873,7 +874,7 @@ do_command_task(tqueue * tq, char *command)
 }
 
 static int
-do_login_task(tqueue * tq, char *command)
+do_login_task(tqueue * tq,   char *command)
 {
     Var result;
     Var args;
@@ -893,8 +894,10 @@ do_login_task(tqueue * tq, char *command)
          * If the verb returns a true value, the server will not ignore the blank line. */
         if (command[0] == '\0') {
             Var do_blank_command_result;
-                run_server_task_setting_id(tq->player, Var::new_obj(tq->handler), "do_blank_command",
-                        parse_into_wordlist(command), command, &do_blank_command_result, &(tq->last_input_task_id));
+			auto handler = Var::new_obj(tq->handler);
+			auto wordlist = parse_into_wordlist(command);
+                run_server_task_setting_id(tq->player, handler, "do_blank_command",
+                        wordlist, command, &do_blank_command_result, &(tq->last_input_task_id));
             if (!is_true(do_blank_command_result))
                 return 1;
         }
@@ -950,7 +953,8 @@ do_login_task(tqueue * tq, char *command)
     }
 
     args = parse_into_wordlist(clear_command ? "\0" : command);
-    run_server_task_setting_id(tq->player, Var::new_obj(tq->handler),
+	auto handler = Var::new_obj(tq->handler);
+    run_server_task_setting_id(tq->player, handler,
 			       "do_login_command", args, clear_command ? "\0" : command,
 			        &result, &(tq->last_input_task_id));
     /* The connected player (tq->player) may be non-negative if
@@ -1006,10 +1010,11 @@ do_login_task(tqueue * tq, char *command)
 }
 
 static void
-do_out_of_band_command(tqueue * tq, char *command)
+do_out_of_band_command(tqueue * tq, const char *command)
 {
+	auto wordlist = parse_into_wordlist(command);
     run_server_task(tq->player, Var::new_obj(tq->handler), "do_out_of_band_command",
-		    parse_into_wordlist(command), command, nullptr);
+		    wordlist, command, nullptr);
 }
 
 static int
@@ -1037,7 +1042,7 @@ new_task_queue(Objid player, Objid handler)
 }
 
 void
-free_task_queue(task_queue q)
+free_task_queue(task_queue& q)
 {
     tqueue *tq = (tqueue *) q.ptr;
 
@@ -1091,19 +1096,19 @@ free_task_queue(task_queue q)
 	   })								\
 
 int
-tasks_set_connection_option(task_queue q, const char *option, Var value)
+tasks_set_connection_option(task_queue& q, const char *option, const Var& value)
 {
     CONNECTION_OPTION_SET(TASK_CO_TABLE, (tqueue *)q.ptr, option, value);
 }
 
 int
-tasks_connection_option(task_queue q, const char *option, Var * value)
+tasks_connection_option(task_queue& q, const char *option, Var * value)
 {
     CONNECTION_OPTION_GET(TASK_CO_TABLE, (tqueue *)q.ptr, option, value);
 }
 
 Var
-tasks_connection_options(task_queue q, Var list)
+tasks_connection_options(task_queue& q, Var list)
 {
     CONNECTION_OPTION_LIST(TASK_CO_TABLE, (tqueue *)q.ptr, list);
 }
@@ -1169,7 +1174,7 @@ enqueue_input_task(tqueue * tq, const char *input, int at_front, int binary, boo
 }
 
 void
-task_suspend_input(task_queue q)
+task_suspend_input(task_queue& q)
 {
     tqueue *tq = (tqueue *)q.ptr;
 
@@ -1207,7 +1212,7 @@ flush_input(tqueue * tq, int show_messages)
 }
 
 void
-new_input_task(task_queue q, const char *input, int binary, bool out_of_band)
+new_input_task(task_queue& q, const char *input, int binary, bool out_of_band)
 {
     tqueue *tq = (tqueue *)q.ptr;
 
@@ -1332,7 +1337,7 @@ enqueue_forked_task2(activation a, int f_index, double after_seconds, int vid)
 }
 
 enum error
-enqueue_suspended_task(vm the_vm, void *data)
+enqueue_suspended_task(vm& the_vm, void *data)
 {
     struct timeval when;
     task *t;
@@ -1399,7 +1404,7 @@ read_input_now(Objid connection)
 }
 
 enum error
-make_reading_task(vm the_vm, void *data)
+make_reading_task(vm& the_vm, void *data)
 {
     Objid player = *((Objid *) data);
     tqueue *tq = find_tqueue(player, 0);
@@ -1447,14 +1452,14 @@ make_http_task(vm the_vm, Objid player, int request)
 }
 
 enum error
-make_parsing_http_request_task(vm the_vm, void *data)
+make_parsing_http_request_task(vm& the_vm, void *data)
 {
     Objid player = *((Objid *) data);
     return make_http_task(the_vm, player, 1);
 }
 
 enum error
-make_parsing_http_response_task(vm the_vm, void *data)
+make_parsing_http_response_task(vm& the_vm, void *data)
 {
     Objid player = *((Objid *) data);
     return make_http_task(the_vm, player, 0);
@@ -1862,7 +1867,7 @@ run_ready_tasks(void)
 }
 
 enum outcome
-run_server_task(Objid player, Var what, const char *verb, Var args,
+run_server_task(Objid player,  const Var& what, const char *verb, Var& args,
 		const char *argstr, Var *result)
 {
     enum outcome ret = run_server_task_setting_id(player, what, verb,
@@ -1882,8 +1887,8 @@ run_server_task(Objid player, Var what, const char *verb, Var args,
  */
 static
 enum outcome
-run_server_task_setting_id(Objid player, Var what, const char *verb,
-			   Var args, const char *argstr, Var *result,
+run_server_task_setting_id(Objid player, const Var& what, const char *verb,
+			   Var& args, const char *argstr, Var *result,
 			   int *task_id)
 {
     db_verb_handle h;

@@ -27,25 +27,25 @@ typedef struct {
 } task_queue;
 
 extern task_queue new_task_queue(Objid player, Objid handler);
-extern void free_task_queue(task_queue q);
+extern void free_task_queue(task_queue& q);
 
-extern int tasks_connection_option(task_queue, const char *,
-				   Var *);
-extern Var tasks_connection_options(task_queue, Var);
-extern int tasks_set_connection_option(task_queue, const char *,
-				       Var);
+extern int tasks_connection_option(task_queue&, const char *,
+				    Var *);
+extern Var tasks_connection_options(task_queue&, Var);
+extern int tasks_set_connection_option(task_queue&, const char *,
+				       const Var&);
 
-extern void new_input_task(task_queue, const char *, int, bool);
-extern void task_suspend_input(task_queue);
+extern void new_input_task(task_queue&, const char *, int, bool);
+extern void task_suspend_input(task_queue&);
 extern enum error enqueue_forked_task2(activation a, int f_index,
 			       double after_seconds, int vid);
-extern enum error enqueue_suspended_task(vm the_vm, void *data);
+extern enum error enqueue_suspended_task(vm& the_vm, void *data);
 				/* data == &(int after_seconds) */
-extern enum error make_reading_task(vm the_vm, void *data);
+extern enum error make_reading_task(vm& the_vm, void *data);
 				/* data == &(Objid connection) */
-extern enum error make_parsing_http_request_task(vm the_vm, void *data);
+extern enum error make_parsing_http_request_task(vm& the_vm, void *data);
 				/* data == &(Objid connection) */
-extern enum error make_parsing_http_response_task(vm the_vm, void *data);
+extern enum error make_parsing_http_response_task(vm& the_vm, void *data);
 				/* data == &(Objid connection) */
 extern void resume_task(vm the_vm, Var value);
 				/* Make THE_VM (a suspended task) runnable on
@@ -85,8 +85,8 @@ extern Var read_input_now(Objid connection);
 
 extern int next_task_start(void);
 extern void run_ready_tasks(void);
-extern enum outcome run_server_task(Objid player, Var what,
-				    const char *verb, Var args,
+extern enum outcome run_server_task(Objid player, const Var& what,
+				    const char *verb, Var& args,
 				    const char *argstr, Var * result);
 extern enum outcome run_server_program_task(Objid _this, const char *verb,
 					    Var args, Objid vloc,

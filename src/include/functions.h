@@ -45,7 +45,7 @@ typedef struct {
 	    void *data;
 	} call;
 	struct {
-	    enum error (*proc) (vm, void *);
+	    enum error (*proc) (vm&, void *);
 	    void *data;
 	} susp;
     } u;
@@ -66,7 +66,7 @@ package make_var_pack(const Var& v);
 package no_var_pack(void);
 package make_call_pack(Byte pc, void *data);
 package tail_call_pack(void);
-package make_suspend_pack(enum error (*)(vm, void *), void *);
+package make_suspend_pack(enum error (*)(vm&, void *), void *);
 package make_int_pack(Num v);
 package make_float_pack(double v);
 

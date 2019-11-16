@@ -155,12 +155,12 @@ free_shandle(shandle * h)
 }
 
 static slistener *
-new_slistener(Objid oid, Var desc, int print_messages, enum error *ee)
+new_slistener(Objid oid, const Var& desc, int print_messages, enum error *ee)
 {
     slistener *l = (slistener *)mymalloc(sizeof(slistener), M_NETWORK);
     server_listener sl;
     enum error e;
-    const char *name;
+    const char *name = nullptr;
 
     sl.ptr = l;
     e = network_make_listener(sl, desc, &(l->nlistener), &(l->desc), &name);
@@ -221,8 +221,9 @@ send_shutdown_message(const char *message)
 
     s << "*** Shutting down: " << message << " ***";
 
+	const auto str = s.str().c_str();
     for (h = all_shandles; h; h = h->next)
-	network_send_line(h->nhandle, s.str().c_str(), 1, 1);
+	network_send_line(h->nhandle, str, 1, 1);
 }
 
 static void
@@ -565,7 +566,8 @@ recycle_anonymous_objects(void)
 	db_set_object_flag2(v, FLAG_RECYCLED);
 
         /* the best approximation I could think of */
-	run_server_task(-1, v, "recycle", new_list(0), "", nullptr);
+		auto arglist = new_list(0);
+	run_server_task(-1, v, "recycle", arglist, "", nullptr);
 
 	/* We'd like to run `db_change_parents()' to be consistent
 	 * with the pattern laid out in `bf_recycle()', but we can't
@@ -597,7 +599,8 @@ recycle_waifs(void)
     std::vector<Waif*> removals;
     for (auto &x: destroyed_waifs) {
         if (destroyed_waifs[x.first] == false) {
-            run_server_task(-1, Var::new_waif(x.first), waif_recycle_verb, new_list(0), "", nullptr);
+			auto arglist = new_list(0);
+            run_server_task(-1, Var::new_waif(x.first), waif_recycle_verb, arglist, "", nullptr);
             destroyed_waifs[x.first] = true;
             /* Flag it as destroyed. Now we just wait for the refcount to hit zero so we can free it. */
         }
@@ -690,7 +693,8 @@ main_loop(void)
     free_var(checkpointed_connections);
 
     /* Third, run #0:server_started() */
-    run_server_task(-1, Var::new_obj(SYSTEM_OBJECT), "server_started", new_list(0), "", nullptr);
+	auto arglist = new_list(0);
+    run_server_task(-1, Var::new_obj(SYSTEM_OBJECT), "server_started", arglist, "", nullptr);
     set_checkpoint_timer(1);
 
     /* Now, we enter the main server loop */
@@ -729,8 +733,9 @@ main_loop(void)
 	    if (checkpoint_requested == CHKPT_SIGNAL)
 		oklog("CHECKPOINTING due to remote request signal.\n");
 	    checkpoint_requested = CHKPT_OFF;
+		auto arglist = new_list(0);
 	    run_server_task(-1, Var::new_obj(SYSTEM_OBJECT), "checkpoint_started",
-			    new_list(0), "", nullptr);
+			    arglist, "", nullptr);
 	    network_process_io(0);
 #ifdef UNFORKED_CHECKPOINTS
 	    call_checkpoint_notifier(db_flush(FLUSH_ALL_NOW));

@@ -85,7 +85,7 @@ void network_callback(int fd, void *data)
 
 /* Creates the background_waiter struct and starts the worker thread. */
 static enum error
-background_suspender(vm the_vm, void *data)
+background_suspender(vm& the_vm, void *data)
 {
     background_waiter *w = (background_waiter*)data;
     w->the_vm = the_vm;

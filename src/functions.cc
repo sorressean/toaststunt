@@ -388,7 +388,7 @@ tail_call_pack(void)
 }
 
 package
-make_suspend_pack(enum error(*proc) (vm, void *), void *data)
+make_suspend_pack(enum error(*proc) (vm&, void *), void *data)
 {
     package p;
 
