@@ -77,6 +77,7 @@ static registry bi_function_registries[] =
 	register_curl,
     register_name_lookup,
 register_sorressean_extensions 
+    register_curl
 };
 
 void

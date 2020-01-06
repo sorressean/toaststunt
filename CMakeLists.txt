@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR 2)
 set(VERSION_MINOR 6)
-set(VERSION_RELEASE 0)
+set(VERSION_RELEASE 1)
 project(ToastStunt VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_RELEASE} LANGUAGES CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
@@ -47,7 +47,7 @@ set(CMAKE_C_FLAGS_WARN   "${SHARED_COMPILE_FLAGS} -Wall -Wno-unused-parameter -W
 set(CMAKE_CXX_FLAGS_WARN "${CMAKE_C_FLAGS_WARN}")
 
 # Check for memory leaks: Minimal optimizations, debug enabled, and sanitize address
-set(CMAKE_C_FLAGS_LEAKCHECK   "-O1 -g -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls")
+set(CMAKE_C_FLAGS_LEAKCHECK  "-O1 -g -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls")
 set(CMAKE_CXX_FLAGS_LEAKCHECK "${CMAKE_C_FLAGS_LEAKCHECK}")
 if(CMAKE_BUILD_TYPE MATCHES "LeakCheck")
     set(EXTRA_LINKER_FLAGS "-fsanitize=address")
@@ -76,7 +76,9 @@ check_function_exists(sigrelse HAVE_SIGRELSE)
 check_function_exists(lrand48 HAVE_LRAND48)
 check_function_exists(random HAVE_RANDOM)
 check_function_exists(select HAVE_SELECT)
+check_function_exists(poll HAVE_POLL)
 check_function_exists(strtoimax HAVE_STRTOIMAX)
+check_function_exists(accept4 HAVE_ACCEPT4)
 
 check_symbol_exists(tzname time.h HAVE_TZNAME)
 
@@ -105,7 +107,6 @@ endif()
 # Find packages. We don't do anything with the information yet because we need to know if things exist
 #                to modify the source files, so we have to do it before moo is defined. But we can't
 #                do the package setup UNTIL moo is defined.
-
 find_package(Threads REQUIRED)
 find_package(Nettle REQUIRED)
 find_package(Argon2 REQUIRED)
@@ -168,7 +169,6 @@ set(src_CXXSRCS
     src/list.cc
     src/map.cc
     src/match.cc
-    src/name_lookup.cc
     src/network.cc
     src/net_mplex.cc
     src/net_proto.cc
@@ -214,18 +214,22 @@ set(src_SERVER
 add_executable(moo ${src_SERVER})
 
 # Make sure we have the packages we need
-if(Threads_FOUND)
-    target_link_libraries(moo "${CMAKE_THREAD_LIBS_INIT}")
-    set(EXTRA_LINKER_FLAGS "${EXTRA_LINKER_FLAGS} -lpthread")
+include_directories(${NETTLE_INCLUDE_DIRS})
+target_link_libraries(moo ${NETTLE_LIBRARIES})
+include_directories(${ARGON2_INCLUDE_DIRS})
+target_link_libraries(moo ${ARGON2_LIBRARIES})
+
+if(CMAKE_USE_PTHREADS_INIT)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
+else()
+    target_link_libraries(moo Threads::Threads)
 endif()
 
 if(PCRE_FOUND)
     include_directories(${PCRE_INCLUDE_DIRS})
     target_link_libraries(moo ${PCRE_LIBRARIES})
 endif()
-
-include_directories(${NETTLE_INCLUDE_DIRS})
-target_link_libraries(moo ${NETTLE_LIBRARIES})
 
 if(CURL_FOUND)
     include_directories(${CURL_INCLUDE_DIRS})
@@ -236,9 +240,6 @@ if(ASPELL_FOUND)
     include_directories(${ASPELL_INCLUDE_DIRS})
     target_link_libraries(moo ${ASPELL_LIBRARIES})
 endif()
-
-include_directories(${ARGON2_INCLUDE_DIRS})
-target_link_libraries(moo ${ARGON2_LIBRARIES})
 
 if(SQLITE3_FOUND)
     include_directories(${SQLITE3_INCLUDE_DIRS})

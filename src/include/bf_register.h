@@ -46,3 +46,4 @@ extern void register_spellcheck(void);
 extern void register_sorressean_extensions();
 extern void register_curl(void);
 extern void register_name_lookup(void);
+extern void register_curl(void);
