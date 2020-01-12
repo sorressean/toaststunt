@@ -10,7 +10,6 @@
 #include "log.h"                        // errlog
 #include "map.h"
 #include <unordered_map>
-#include "name_lookup.h"                // dns_threadpool
 
 /*
   A general-purpose extension for doing work in separate threads. The entrypoint (background_thread)
