@@ -30,6 +30,7 @@
 */
 
 static std::unordered_map <int, background_waiter*> background_process_table;
+static threadpool background_pool;
 static int next_background_handle = 1;
 
 /* @forked will use the enumerator to find relevant tasks in your external queue, so everything we've spawned
@@ -235,8 +236,6 @@ static threadpool *thread_pool_by_name(const char* pool)
 {
     if (!strcmp(pool, "MAIN"))
         return &background_pool;
-    else if (!strcmp(pool, "DNS"))
-        return dns_threadpool();
 
     return nullptr;
 }

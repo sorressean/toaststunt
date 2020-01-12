@@ -13,7 +13,7 @@
 #   define SCNu32 "u"
 #   define SCNx32 "x"
 #else
-#   if !defined(__MACH__)
+#   if !defined(__MACH__) && !defined(__arm__)
 #       define PRId64 "ld"
 #       define PRIi64 "li"
 #       define PRIo64 "lo"
@@ -52,6 +52,7 @@
 #cmakedefine01 HAVE_TM_ZONE
 #cmakedefine01 HAVE_TZNAME
 #cmakedefine01 HAVE_SELECT
+#cmakedefine01 HAVE_POLL
 #cmakedefine01 HAVE_RANDOM
 #cmakedefine01 HAVE_LRAND48
 #cmakedefine01 HAVE_WAITPID
@@ -59,6 +60,7 @@
 #cmakedefine01 HAVE_WAIT3
 #cmakedefine01 HAVE_SIGEMPTYSET
 #cmakedefine01 HAVE_SIGRELSE
+#cmakedefine01 HAVE_ACCEPT4
 
 #if @HAVE_STRTOIMAX@
 # ifdef HAVE_LONG_LONG

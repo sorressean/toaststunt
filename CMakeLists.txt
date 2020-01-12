@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR 2)
 set(VERSION_MINOR 6)
-set(VERSION_RELEASE 0)
+set(VERSION_RELEASE 1)
 project(ToastStunt VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_RELEASE} LANGUAGES CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
@@ -54,8 +54,8 @@ if(CMAKE_BUILD_TYPE MATCHES "LeakCheck")
 endif()
 
 string(TOUPPER ${CMAKE_BUILD_TYPE} CMAKE_BUILD_TYPE_UPPER)
-list(APPEND CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE_UPPER}}")
-list(APPEND CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER}}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${CMAKE_BUILD_TYPE_UPPER}}")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER}}")
 
 # Compatibility Checks Galore
 include(CheckStructHasMember)
@@ -76,7 +76,9 @@ check_function_exists(sigrelse HAVE_SIGRELSE)
 check_function_exists(lrand48 HAVE_LRAND48)
 check_function_exists(random HAVE_RANDOM)
 check_function_exists(select HAVE_SELECT)
+check_function_exists(poll HAVE_POLL)
 check_function_exists(strtoimax HAVE_STRTOIMAX)
+check_function_exists(accept4 HAVE_ACCEPT4)
 
 check_symbol_exists(tzname time.h HAVE_TZNAME)
 
@@ -167,7 +169,6 @@ set(src_CXXSRCS
     src/list.cc
     src/map.cc
     src/match.cc
-    src/name_lookup.cc
     src/network.cc
     src/net_mplex.cc
     src/net_proto.cc
@@ -218,7 +219,6 @@ include_directories(${ARGON2_INCLUDE_DIRS})
 target_link_libraries(moo ${ARGON2_LIBRARIES})
 
 if(CMAKE_USE_PTHREADS_INIT)
-    #    list(APPEND CMAKE_C_FLAGS "-pthread")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -pthread")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -pthread")
 else()
