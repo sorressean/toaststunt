@@ -217,6 +217,14 @@ typedef struct Waif {
 	return TYPE_OBJ == type;
     }
 
+static Var new_string(const char* string)
+{
+	Var v;
+	v.type = TYPE_STR;
+	v.v.str = str_dup(string);
+	return v;
+}
+
     static Var
     new_obj(const Objid &obj) {
 	Var v;

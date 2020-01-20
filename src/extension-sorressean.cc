@@ -8,6 +8,7 @@
 #include "log.h"            // oklog()
 #include "map.h" //mapforeach, etc
 #include "utils.h" //free_var plus many others
+#include <sstream>
 
 static Var
 list_assoc(Var vtarget, Var vlist, const int vindex)
@@ -295,6 +296,45 @@ free_var(arglist);
 return make_var_pack(ret);
 }
 
+static package bf_join(Var arglist, Byte next, void *vdata, Objid progr)
+{
+	const auto length = arglist.v.list[1].v.list[0].v.num;
+	if (length == 0)
+	{
+		free_var(arglist);
+		return make_var_pack(Var::new_string(""));
+	}
+else if (length == 1)
+{
+//this is a bit of duplicated code
+	//I would rather duplicate here as opposed to have to try to handle a single case later.
+	if (arglist.v.list[1].v.list[1].type != TYPE_STR)
+	{
+		free_var(arglist);
+		return make_error_pack(E_INVARG);
+	}
+	const auto ret = var_dup(arglist.v.list[1].v.list[1]);
+	free_var(arglist);
+	return make_var_pack(ret);
+}
+
+std::stringstream st;
+const char* sep = arglist.v.list[2].v.str;
+for (unsigned int index = 1; index <= length-1; ++index)
+{
+	if (arglist.v.list[1].v.list[index].type != TYPE_STR)
+	{
+		free_var(arglist);
+		return make_error_pack(E_INVARG);
+	}
+st << arglist.v.list[1].v.list[index].v.str;
+st << sep;
+}
+st << arglist.v.list[1].v.list[length].v.str;
+free_var(arglist);
+return make_var_pack(Var::new_string(st.str().c_str()));
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -305,6 +345,7 @@ void register_sorressean_extensions()
     register_function("union", 1, -1, bf_union, TYPE_LIST);
     register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
     	    register_function("listflatten", 1, 1, bf_list_flatten, TYPE_LIST);
+			register_function("join", 2, 2, bf_join, TYPE_LIST, TYPE_STR);
     register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
