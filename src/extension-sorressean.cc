@@ -268,6 +268,54 @@ static package bf_bit_not(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(Var::new_int(~a));
 }
 
+static unsigned int count_all_list_elements(const Var& list)
+{
+		const auto length = list.v.list[0].v.num;
+	if (length == 0)
+		return length;
+	
+	unsigned int count = length;
+	for (unsigned int i = 1; i <= length; ++i)
+	{
+	if (list.v.list[i].type == TYPE_LIST)
+	{
+count += count_all_list_elements(list.v.list[i])-1;
+	}
+	}
+	
+	return count;
+}
+
+static unsigned int list_vectorize(const Var& list, Var& values, unsigned  int position = 1)
+{
+		const auto count = list.v.list[0].v.num;
+	if (count == 0)
+		return position;
+	
+	for (unsigned int index = 1; index <= count; ++index)
+	{
+		if (list.v.list[index].type == TYPE_LIST)
+		{
+			position = list_vectorize(list.v.list[index], values, position);
+												continue;
+		}
+		values.v.list[position]=var_dup(list.v.list[index]);
+		position+=1;
+	}
+	
+	return position;
+}
+
+static package bf_list_flatten(Var arglist, Byte next, void *vdata, Objid progr)
+{
+const auto all_elements = count_all_list_elements(arglist.v.list[1]);
+auto ret = new_list(all_elements);
+list_vectorize(arglist.v.list[1], ret);
+free_var(arglist);
+
+return make_var_pack(ret);
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -278,6 +326,7 @@ void register_sorressean_extensions()
     register_function("union", 1, -1, bf_union, TYPE_LIST);
     register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
     register_function("listreverse", 1, 1, bf_list_reverse, TYPE_LIST);
+	    register_function("listflatten", 1, 1, bf_list_flatten, TYPE_LIST);
     register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
