@@ -75,36 +75,14 @@ bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(r);
 }
 
-/**
-*The next two builtins are going to help with things like this:
-* if (!(foo in (mapkeys(bar))))
-* etc.
-* Simplified down to if (!contains_key(bar, foo))
-* contains_value works the exact same way except that it looks for values.
-* There is not a performance improvement using in vs contains_key, they both have to iterate over the entire map.
-*/
-static int do_contains_key(Var key, Var value, void *data, int first)
-{
-    Var* search = (Var*)data;
-    return equality(key, *search, 1);
-}
-static package bf_contains_key(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    const int result = mapforeach(arglist.v.list[1], do_contains_key, &arglist.v.list[2]);
-    free_var(arglist);
-
-    Var ret = Var::new_int(result);
-    return make_var_pack(ret);
-}
-
-static int do_contains_value(Var key, Var value, void *data, int first)
+static int do_maphasvalue(Var key, Var value, void *data, int first)
 {
     Var* search = (Var*)data;
     return equality(value, *search, 1);
 }
-static package bf_contains_value(Var arglist, Byte next, void *vdata, Objid progr)
+static package bf_maphasvalue(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    const int result = mapforeach(arglist.v.list[1], do_contains_value, &arglist.v.list[2]);
+    const int result = mapforeach(arglist.v.list[1], do_maphasvalue, &arglist.v.list[2]);
     free_var(arglist);
 
     Var ret = Var::new_int(result);
@@ -130,13 +108,12 @@ bf_intersection(Var arglist, Byte next, void *vdata, Objid progr)
 
     if (arglist.v.list[0].v.num > 1)
         {
-            int y = 0;
-            int x = 0;
-            for (x = 2; x <= arglist.v.list[0].v.num; x++)
+			int x, y;
+            for (int x = 2; x <= arglist.v.list[0].v.num; x++)
                 {
                     if (r.v.list[0].v.num < arglist.v.list[x].v.list[0].v.num)
                         {
-                            for (y = 1; y <= r.v.list[0].v.num; y++)
+                            for (int y = 1; y <= r.v.list[0].v.num; y++)
                                 {
                                     if (!ismember(r.v.list[y], arglist.v.list[x], 0))
                                         {
@@ -295,8 +272,7 @@ void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
-    register_function("contains_key", 2, 2, bf_contains_key, TYPE_MAP, TYPE_ANY);
-    register_function("contains_value", 2, 2, bf_contains_value, TYPE_MAP, TYPE_ANY);
+        register_function("maphasvalue", 2, 2, bf_maphasvalue, TYPE_MAP, TYPE_ANY);
     register_function("intersection", 1, -1, bf_intersection, TYPE_LIST);
     register_function("difference", 1, -1, bf_diff, TYPE_LIST);
     register_function("union", 1, -1, bf_union, TYPE_LIST);
