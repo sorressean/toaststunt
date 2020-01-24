@@ -19,6 +19,9 @@
 #define Utils_h 1
 
 #include <stdio.h>
+#include <string>
+#include <sstream>
+
 
 #include "config.h"
 #include "execute.h"
@@ -99,4 +102,5 @@ extern Var anonymizing_var_ref(Var v, Objid progr);
 				 * non-wizards/owners.
 				 */
 
+std::string VarToString(const Var& v);
 #endif

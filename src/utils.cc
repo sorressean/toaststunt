@@ -20,6 +20,8 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include <sstream>
+#include <string>
 
 #include "config.h"
 #include "db.h"
@@ -36,6 +38,7 @@
 #include "streams.h"
 #include "structures.h"
 #include "waif.h"
+#include "unparse.h"
 #include "utils.h"
 
 static const char ascii[] =
@@ -731,4 +734,43 @@ anonymizing_var_ref(Var v, Objid progr)
     r.v.anon = nullptr;
 
     return r;
+}
+
+std::string VarToString(const Var& v)
+{
+	std::stringstream st;
+	switch(v.type)
+	{
+		case TYPE_INT:
+		st << v.v.num;
+		break;
+		case TYPE_OBJ:
+		st << "#" << v.v.obj;
+		break;
+		case TYPE_STR:
+		st << v.v.str;
+		break;
+		case TYPE_ERR:
+		st << unparse_error(v.v.err);
+		break;
+		case TYPE_FLOAT:
+		st << v.v.fnum;
+		break;
+		case TYPE_MAP:
+		st << "[map";
+		break;
+		case TYPE_LIST:
+		st << "{list}";
+		break;
+		case TYPE_ANON:
+		st << "*anonymous*";
+		break;
+		case TYPE_WAIF:
+		st << "[[waif]]";
+		break;
+		default:
+		st << "<<UNKNOWN>>";
+	}
+	
+	return st.str();
 }
