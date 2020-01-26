@@ -296,6 +296,14 @@ free_var(arglist);
 return make_var_pack(ret);
 }
 
+static inline void add_variable_to_stream(std::stringstream& st, const Var& v)
+{
+	if (v.type != TYPE_STR)
+			st << VarToString(v);
+		else
+st << v.v.str;
+}
+
 static package bf_join(Var arglist, Byte next, void *vdata, Objid progr)
 {
 	const auto argLength = arglist.v.list[0].v.num;
@@ -305,31 +313,15 @@ static package bf_join(Var arglist, Byte next, void *vdata, Objid progr)
 		free_var(arglist);
 		return make_var_pack(Var::new_string(""));
 	}
-else if (listLength == 1)
-{
-//this is a bit of duplicated code
-	//I would rather duplicate here as opposed to have to try to handle a single case later.
-	if (arglist.v.list[1].v.list[1].type != TYPE_STR)
-	{
-		free_var(arglist);
-		return make_error_pack(E_INVARG);
-	}
-	const auto ret = var_dup(arglist.v.list[1].v.list[1]);
-	free_var(arglist);
-	return make_var_pack(ret);
-}
 
 std::stringstream st;
 const char* sep = (argLength == 1? nullptr : arglist.v.list[2].v.str);
 for (unsigned int index = 1; index <= listLength-1; ++index)
 {
-	if (arglist.v.list[1].v.list[index].type != TYPE_STR)
-			st << VarToString(arglist.v.list[1].v.list[index]);
-		else
-st << arglist.v.list[1].v.list[index].v.str;
+	add_variable_to_stream(st, arglist.v.list[1].v.list[index]);
 st << (sep == nullptr? " " : sep);
 }
-st << (arglist.v.list[1].v.list[listLength].type == TYPE_STR? arglist.v.list[1].v.list[listLength].v.str : VarToString(arglist.v.list[1].v.list[listLength]));
+add_variable_to_stream(st, arglist.v.list[1].v.list[listLength]);
 free_var(arglist);
 return make_var_pack(Var::new_string(st.str().c_str()));
 }
