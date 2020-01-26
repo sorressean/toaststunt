@@ -620,7 +620,7 @@ destroy_map(Var map)
 
 /* called from utils.c */
 Var
-map_dup(Var map)
+map_dup(Var& map)
 {
     rbtrav trav;
     rbnode node;
@@ -667,7 +667,7 @@ map_sizeof(rbtree *tree)
 }
 
 Var
-mapinsert(Var map, Var key, Var value)
+mapinsert(Var& map, Var key, Var value)
 {				/* consumes `map', `key', `value' */
     /* Prevent the insertion of invalid values -- specifically keys
      * that have the values `none' and `clear' (which are used as

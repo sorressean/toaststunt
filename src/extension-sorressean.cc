@@ -326,6 +326,19 @@ free_var(arglist);
 return make_var_pack(Var::new_string(st.str().c_str()));
 }
 
+static package bf_list_remove_duplicates(Var arglist, Byte next, void *vdata, Objid progr)
+{
+	const auto listLength = arglist.v.list[1].v.list[0].v.num;
+	Var ret = new_list(0);
+	for (unsigned int index = 1; index <= listLength; ++index)
+	{
+		ret = setadd(ret, arglist.v.list[1].v.list[index]);
+	}
+	
+	free_var(arglist);
+	return make_var_pack(ret);
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -337,6 +350,7 @@ void register_sorressean_extensions()
     register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
     	    register_function("listflatten", 1, 1, bf_list_flatten, TYPE_LIST);
 			register_function("join", 1, 2, bf_join, TYPE_LIST, TYPE_STR);
+			register_function("listremove_duplicates", 1, 1, bf_list_remove_duplicates, TYPE_LIST);
     register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
