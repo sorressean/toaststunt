@@ -402,7 +402,7 @@ stream_add_tostr(Stream * s, Var v)
 }
 
 const char *
-value2str(Var value)
+value2str(const Var& value)
 {
     if (value.type == TYPE_STR) {
 	/* do this case separately to avoid two copies
@@ -435,7 +435,7 @@ print_map_to_stream(Var key, Var value, void *sptr, int first)
 }
 
 void
-unparse_value(Stream * s, Var v)
+unparse_value(Stream * s, const Var& v)
 {
     switch (v.type) {
     case TYPE_INT:

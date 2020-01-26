@@ -45,8 +45,8 @@ extern Var strrangeset(Var list, int from, int to, Var value);
 extern Var substr(Var str, int lower, int upper);
 extern Var strget(Var str, int i);
 
-extern const char *value2str(Var);
-extern void unparse_value(Stream *, Var);
+extern const char *value2str(const Var&);
+extern void unparse_value(Stream *, const Var&);
 
 extern Var emptylist; /* Bandaid: See list.cc */
 
@@ -55,7 +55,7 @@ extern Var emptylist; /* Bandaid: See list.cc */
  * ensure `l' is, in fact, a list.
  */
 static inline Num
-listlength(Var l)
+listlength(const Var& l)
 {
     return l.v.list[0].v.num;
 }
@@ -68,7 +68,7 @@ listlength(Var l)
  * references (TYPE_LIST).
  */
 static inline Var
-enlist_var(Var v)
+enlist_var(const Var& v)
 {
     if (TYPE_LIST == v.type)
 	return v;
