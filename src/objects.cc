@@ -1103,12 +1103,12 @@ static bool multi_parent_isa(const Var *object, const Var *parents)
 bf_occupants(Var arglist, Byte next, void *vdata, Objid progr)
 {				/* (object) */
     Var ret = new_list(0);
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     Var contents = arglist.v.list[1];
-    int content_length = contents.v.list[0].v.num;
-    bool check_parent = nargs == 1 ? false : true;
-    Var parent = check_parent ? arglist.v.list[2] : nothing;
-    bool check_player_flag = (nargs == 1 || (nargs > 2 && is_true(arglist.v.list[3])));
+    const int content_length = contents.v.list[0].v.num;
+    const bool check_parent = nargs == 1 ? false : true;
+    const Var parent = check_parent ? arglist.v.list[2] : nothing;
+    const bool check_player_flag = (nargs == 1 || (nargs > 2 && is_true(arglist.v.list[3])));
 
     if (check_parent && !is_obj_or_list_of_objs(parent)) {
         free_var(arglist);

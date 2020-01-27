@@ -1033,7 +1033,8 @@ db_count_contents(Objid oid)
 int
 db_for_all_contents(Objid oid, int (*func) (void *, Objid), void *data)
 {
-    int i, c = db_count_contents(oid);
+    int i=0;
+	const int c = db_count_contents(oid);
 
     for (i = 1; i <= c; i++)
 	if (func(data, objects[oid]->contents.v.list[i].v.obj))
