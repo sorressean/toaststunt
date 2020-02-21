@@ -112,7 +112,7 @@ bf_intersection(Var arglist, Byte next, void *vdata, Objid progr)
 
     if (arglist.v.list[0].v.num > 1)
         {
-            int x, y;
+			int x, y;
             for (int x = 2; x <= arglist.v.list[0].v.num; x++)
                 {
                     if (r.v.list[0].v.num < arglist.v.list[x].v.list[0].v.num)
@@ -253,156 +253,149 @@ static package bf_bit_not(Var arglist, Byte next, void *vdata, Objid progr)
 
 static unsigned int count_all_list_elements(const Var& list)
 {
-    const auto length = list.v.list[0].v.num;
-    if (length == 0)
-        return length;
-
-    unsigned int count = length;
-    for (unsigned int i = 1; i <= length; ++i)
-        {
-            if (list.v.list[i].type == TYPE_LIST)
-                {
-                    count += count_all_list_elements(list.v.list[i])-1;
-                }
-        }
-
-    return count;
+		const auto length = list.v.list[0].v.num;
+	if (length == 0)
+		return length;
+	
+	unsigned int count = length;
+	for (unsigned int i = 1; i <= length; ++i)
+	{
+	if (list.v.list[i].type == TYPE_LIST)
+	{
+count += count_all_list_elements(list.v.list[i])-1;
+	}
+	}
+	
+	return count;
 }
 
 static unsigned int list_vectorize(const Var& list, Var& values, unsigned  int position = 1)
 {
-    const auto count = list.v.list[0].v.num;
-    if (count == 0)
-        return position;
-
-    for (unsigned int index = 1; index <= count; ++index)
-        {
-            if (list.v.list[index].type == TYPE_LIST)
-                {
-                    position = list_vectorize(list.v.list[index], values, position);
-                    continue;
-                }
-            values.v.list[position]=var_dup(list.v.list[index]);
-            position+=1;
-        }
-
-    return position;
+		const auto count = list.v.list[0].v.num;
+	if (count == 0)
+		return position;
+	
+	for (unsigned int index = 1; index <= count; ++index)
+	{
+		if (list.v.list[index].type == TYPE_LIST)
+		{
+			position = list_vectorize(list.v.list[index], values, position);
+												continue;
+		}
+		values.v.list[position]=var_dup(list.v.list[index]);
+		position+=1;
+	}
+	
+	return position;
 }
 
 static package bf_list_flatten(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    const auto all_elements = count_all_list_elements(arglist.v.list[1]);
-    auto ret = new_list(all_elements);
-    list_vectorize(arglist.v.list[1], ret);
-    free_var(arglist);
+const auto all_elements = count_all_list_elements(arglist.v.list[1]);
+auto ret = new_list(all_elements);
+list_vectorize(arglist.v.list[1], ret);
+free_var(arglist);
 
-    return make_var_pack(ret);
+return make_var_pack(ret);
 }
 
 static inline void add_variable_to_stream(std::stringstream& st, const Var& v)
 {
-    if (v.type != TYPE_STR)
-        st << VarToString(v);
-    else
-        st << v.v.str;
+	if (v.type != TYPE_STR)
+			st << VarToString(v);
+		else
+st << v.v.str;
 }
 
 static package bf_join(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    const auto argLength = arglist.v.list[0].v.num;
-    const auto listLength = arglist.v.list[1].v.list[0].v.num;
-    if (listLength == 0)
-        {
-            free_var(arglist);
-            return make_var_pack(Var::new_string(""));
-        }
+	const auto argLength = arglist.v.list[0].v.num;
+	const auto listLength = arglist.v.list[1].v.list[0].v.num;
+	if (listLength == 0)
+	{
+		free_var(arglist);
+		return make_var_pack(Var::new_string(""));
+	}
 
-    std::stringstream st;
-    const char* sep = (argLength == 1? nullptr : arglist.v.list[2].v.str);
-    for (unsigned int index = 1; index <= listLength-1; ++index)
-        {
-            add_variable_to_stream(st, arglist.v.list[1].v.list[index]);
-            st << (sep == nullptr? " " : sep);
-        }
-    add_variable_to_stream(st, arglist.v.list[1].v.list[listLength]);
-    free_var(arglist);
-    return make_var_pack(Var::new_string(st.str().c_str()));
+std::stringstream st;
+const char* sep = (argLength == 1? nullptr : arglist.v.list[2].v.str);
+for (unsigned int index = 1; index <= listLength-1; ++index)
+{
+	add_variable_to_stream(st, arglist.v.list[1].v.list[index]);
+st << (sep == nullptr? " " : sep);
+}
+add_variable_to_stream(st, arglist.v.list[1].v.list[listLength]);
+free_var(arglist);
+return make_var_pack(Var::new_string(st.str().c_str()));
 }
 
 static package bf_list_remove_duplicates(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    const auto listLength = arglist.v.list[1].v.list[0].v.num;
-    Var ret = new_list(0);
-    for (unsigned int index = 1; index <= listLength; ++index)
-        {
-            if (!ismember(arglist.v.list[1].v.list[index], ret, 0))
+	const auto listLength = arglist.v.list[1].v.list[0].v.num;
+	Var ret = new_list(0);
+	for (unsigned int index = 1; index <= listLength; ++index)
+	{
+		if (!ismember(arglist.v.list[1].v.list[index], ret, 0))
                 {
                     Var element = var_ref(arglist.v.list[1].v.list[index]);
                     ret = listappend(ret, element);
-                }
-        }
-
-    free_var(arglist);
-    return make_var_pack(ret);
+				}
+            	}
+	
+	free_var(arglist);
+	return make_var_pack(ret);
 }
 
-static int all_contents_callback(void *data, Objid id)
+static inline std::vector<Objid> all_contents(const Var& object)
 {
-    std::vector<Objid>* list = static_cast<std::vector<Objid>*>(data);
-    list->push_back(id);
-    return db_for_all_contents(id, all_contents_callback, data);
+			std::vector<Objid> objids;
+			const auto topObject = dbpriv_find_object(object.v.obj);
+	const auto objectCount = listlength(topObject->contents);
+	for (int index = 1; index <= objectCount; ++index)
+	{
+		objids.push_back(topObject->contents.v.list[index].v.obj);
+		const auto nestedContents = all_contents(topObject->contents.v.list[index]);
+		if (nestedContents.size())
+		objids.insert(objids.end(), nestedContents.begin(), nestedContents.end());
+		}
+	
+	return objids;
 }
-
-static inline std::vector<Objid> all_contents(Var& object)
-{
-    std::vector<Objid> objids;
-    const auto obj = dbpriv_find_object(object.v.obj);
-    const auto objectCount = listlength(obj->contents);
-    for (int index = 1; index <= objectCount; ++index)
-        {
-            objids.push_back(obj->contents.v.list[index].v.obj);
-            const auto nestedContents = all_contents(obj->contents.v.list[index]);
-            if (nestedContents.size())
-                objids.insert(objids.end(), nestedContents.begin(), nestedContents.end());
-        }
-
-    return objids;
-}
-
-static package bf_all_contents(Var arglist, Byte next, void *vdata, Objid progr)
-{
-    if (!valid(arglist.v.list[1].v.obj))
-        {
-            free_var(arglist);
-            return make_error_pack(E_INVIND);
-        }
-
-    const auto contents = all_contents(arglist.v.list[1]);
-    free_var(arglist);
-
-    const auto length = contents.size();
-    Var ret = new_list(length);
-    for (unsigned int index = 1; index <= length; ++index)
-        {
-            ret.v.list[index] = Var::new_obj(contents[index-1]);
-        }
-
-    return make_var_pack(ret);
-}
-
+	
+	static package bf_all_contents(Var arglist, Byte next, void *vdata, Objid progr)
+	{
+		if (!valid(arglist.v.list[1].v.obj))
+		{
+			free_var(arglist);
+		return make_error_pack(E_INVIND);
+		}
+			
+		const auto contents = all_contents(arglist.v.list[1]);
+		free_var(arglist);
+		
+		const auto length = contents.size();
+		Var ret = new_list(length);
+		for (unsigned int index = 1; index <= length; ++index)
+		{
+			ret.v.list[index] = Var::new_obj(contents[index-1]);
+		}
+		
+		return make_var_pack(ret);
+	}
+	
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
-    register_function("maphasvalue", 2, 2, bf_maphasvalue, TYPE_MAP, TYPE_ANY);
+        register_function("maphasvalue", 2, 2, bf_maphasvalue, TYPE_MAP, TYPE_ANY);
     register_function("intersection", 1, -1, bf_intersection, TYPE_LIST);
     register_function("difference", 1, -1, bf_diff, TYPE_LIST);
     register_function("union", 1, -1, bf_union, TYPE_LIST);
     register_function("set_merge", 2, 2, bf_set_merge, TYPE_LIST, TYPE_LIST);
-    register_function("listflatten", 1, 1, bf_list_flatten, TYPE_LIST);
-    register_function("join", 1, 2, bf_join, TYPE_LIST, TYPE_STR);
-    register_function("listremove_duplicates", 1, 1, bf_list_remove_duplicates, TYPE_LIST);
-    register_function("all_contents", 1, 1, bf_all_contents, TYPE_OBJ);
+    	    register_function("listflatten", 1, 1, bf_list_flatten, TYPE_LIST);
+			register_function("join", 1, 2, bf_join, TYPE_LIST, TYPE_STR);
+			register_function("listremove_duplicates", 1, 1, bf_list_remove_duplicates, TYPE_LIST);
+			register_function("all_contents", 1, 1, bf_all_contents, TYPE_OBJ);
     register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
