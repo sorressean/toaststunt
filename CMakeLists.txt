@@ -14,6 +14,15 @@ find_package(gperf REQUIRED)
 # Where to find header files
 include_directories(${CMAKE_SOURCE_DIR}/src/include)
 include_directories(${CMAKE_SOURCE_DIR}/src/dependencies)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats/stats_incl)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats/stats_incl/dens)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats/stats_incl/misc)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats/stats_incl/prob)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats/stats_incl/quant)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/stats/stats_incl/rand)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/gcem)
+include_directories(${CMAKE_SOURCE_DIR}/src/dependencies/gcem_incl)
 include_directories(${CMAKE_BINARY_DIR})
 
 # Build types

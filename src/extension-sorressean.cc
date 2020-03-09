@@ -10,6 +10,7 @@
 #include "log.h"            // oklog()
 #include "map.h" //mapforeach, etc
 #include "utils.h" //free_var plus many others
+#include "stats.hpp"
 #include <sstream>
 #include <vector>
 
