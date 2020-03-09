@@ -84,13 +84,14 @@ typedef struct nhandle {
 	int outbound, binary;
 #if NETWORK_PROTOCOL == NP_TCP
 	bool client_echo;
-	uint16_t source_port;          // port on server
-	const char *source_address;           // interface on server (resolved hostname)
+	uint16_t source_port;          		// port on server
+	const char *source_address;         // interface on server (resolved hostname)
 	const char *source_ipaddr;			// interface on server (IP address)
-	uint16_t destination_port;     // local port on connectee
-	const char *destination_ipaddr;       // IP address of connection
-	sa_family_t protocol_family;    // AF_INET, AF_INET6
+	uint16_t destination_port;     		// local port on connectee
+	const char *destination_ipaddr;     // IP address of connection
+	sa_family_t protocol_family;    	// AF_INET, AF_INET6
 	pthread_mutex_t *name_mutex;
+	unsigned int refcount;
 #endif
 } nhandle;
 
@@ -388,6 +389,7 @@ new_nhandle(const int rfd, const int wfd, const int outbound, uint16_t listen_po
 	h->protocol_family = protocol;
 	h->name_mutex = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
 	pthread_mutex_init(h->name_mutex, nullptr);
+	h->refcount = 1;
 #endif
 
 	return h;
@@ -420,6 +422,7 @@ close_nhandle(nhandle * h)
 #endif
 	myfree(h, M_NETWORK);
 }
+
 
 static void
 close_nlistener(nlistener * l)
@@ -489,7 +492,7 @@ accept_new_connection(nlistener * l)
 		    } else {
 			    nh.ptr = h = new_nhandle(rfd, wfd, 0, l->port, l->name, l->ip_addr, port, name, ip_addr, protocol);
 			    server_refuse_connection(l->slistener, nh);
-			    close_nhandle(h);
+				decrement_nhandle_refcount(nh);
 		    }
 		    get_pocket_descriptors();
 		    break;
@@ -669,10 +672,12 @@ network_process_io(int timeout)
 				accept_new_connection(l);
 		for (h = all_nhandles; h; h = hnext) {
 			hnext = h->next;
-			if ((mplex_is_readable(h->rfd) && !pull_input(h))
-			    || (mplex_is_writable(h->wfd) && !push_output(h))) {
+			if (((mplex_is_readable(h->rfd) && !pull_input(h))
+			    || (mplex_is_writable(h->wfd) && !push_output(h))) && h->refcount == 1) {
 				server_close(h->shandle);
-				close_nhandle(h);
+				network_handle nh;
+				nh.ptr = h;
+				decrement_nhandle_refcount(nh);
 			}
 		}
 		check_registered_fds();
@@ -738,17 +743,48 @@ network_name_lookup_rewrite(Objid obj, const char *name)
 	return 0;
 }
 
+void
+lock_connection_name_mutex(const network_handle nh)
+{
+	const nhandle *h = (nhandle *) nh.ptr;
+	pthread_mutex_lock(h->name_mutex);
+}
+
+void
+unlock_connection_name_mutex(const network_handle nh)
+{
+	const nhandle *h = (nhandle *) nh.ptr;
+	pthread_mutex_unlock(h->name_mutex);
+}
+
+void
+increment_nhandle_refcount(const network_handle nh)
+{
+	nhandle *h = (nhandle *)nh.ptr;
+	h->refcount++;
+}
+
+void
+decrement_nhandle_refcount(const network_handle nh)
+{
+	nhandle *h = (nhandle *)nh.ptr;
+	h->refcount--;
+
+	if (h->refcount <= 0)
+		close_nhandle(h);
+}
+
+int
+nhandle_refcount(const network_handle nh)
+{
+	return ((nhandle*)nh.ptr)->refcount;
+}
+
 const char *
 network_connection_name(const network_handle nh)
 {
 	const nhandle *h = (nhandle *) nh.ptr;
-	const char *ret = nullptr;
-		
-		pthread_mutex_lock(h->name_mutex);	
-		ret = h->name;
-		pthread_mutex_unlock(h->name_mutex);	
-	
-	return ret;
+	return h->name;
 }
 
 int
@@ -918,7 +954,7 @@ network_open_connection(Var arglist, server_listener sl, bool use_ipv6)
 void
 network_close(network_handle h)
 {
-	close_nhandle((nhandle *) h.ptr);
+	decrement_nhandle_refcount(h);
 }
 
 void
