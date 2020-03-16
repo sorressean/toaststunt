@@ -10,6 +10,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
 find_package(BISON REQUIRED)
 find_package(Perl REQUIRED)
 find_package(gperf REQUIRED)
+find_package(Boost REQUIRED)
 
 # Where to find header files
 include_directories(${CMAKE_SOURCE_DIR}/src/include)

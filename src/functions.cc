@@ -16,6 +16,8 @@
  *****************************************************************************/
 
 #include <stdarg.h>
+#include <vector>
+#include <functional>
 
 #include "bf_register.h"
 #include "config.h"
@@ -40,9 +42,14 @@
  * files to the `CSRCS' line in the Makefile.
  ****************************************************************************/
 
-typedef void (*registry) ();
+using namespace std;
 
-static registry bi_function_registries[] =
+typedef function<void()> registry;
+
+void
+register_bi_functions()
+{
+	const vector<registry> registry_callbacks =
 {
 #ifdef ENABLE_GC
     register_gc,
@@ -79,15 +86,12 @@ register_sorressean_extensions,
     register_curl
 };
 
-void
-register_bi_functions()
+for (const auto& callback: registry_callbacks)
 {
-    int loop, num_registries =
-    sizeof(bi_function_registries) / sizeof(bi_function_registries[0]);
-
-    for (loop = 0; loop < num_registries; loop++)
-	(void) (*(bi_function_registries[loop])) ();
+	callback();
 }
+}
+   
 
 /*** register ***/
 
