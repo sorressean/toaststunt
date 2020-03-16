@@ -10,9 +10,9 @@
 #include "log.h"            // oklog()
 #include "map.h" //mapforeach, etc
 #include "utils.h" //free_var plus many others
-#include "stats.hpp"
 #include <sstream>
 #include <vector>
+#include <boost/algorithm/clamp.hpp>
 
 static Var
 list_assoc(Var vtarget, Var vlist, const int vindex)
@@ -383,7 +383,31 @@ static inline std::vector<Objid> all_contents(const Var& object)
 		
 		return make_var_pack(ret);
 	}
-	
+
+static package
+bf_clamp(Var arglist, Byte next, void *vdata, Objid progr)
+{
+	const auto firstType = arglist.v.list[1].type;
+	if (firstType != TYPE_INT && firstType != TYPE_FLOAT)
+	{
+		free_var(arglist);
+		return make_error_pack(E_TYPE);
+	}
+			if (arglist.v.list[2].type != firstType || arglist.v.list[3].type != firstType)
+			{
+				free_var(arglist);
+				return make_error_pack(E_TYPE);
+			}
+			
+			const auto value = (firstType == TYPE_INT? arglist.v.list[1].v.num : arglist.v.list[1].v.fnum);
+			const auto lower = (firstType == TYPE_INT? arglist.v.list[2].v.num : arglist.v.list[2].v.fnum);
+			const auto upper = (firstType == TYPE_INT? arglist.v.list[3].v.num : arglist.v.list[3].v.fnum);
+			free_var(arglist);
+			const auto result = boost::algorithm::clamp(value, lower, upper);
+			const auto returnVar = (firstType == TYPE_INT? Var::new_int(result) : Var::new_float(result));
+			return make_var_pack(returnVar);
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -401,4 +425,5 @@ void register_sorressean_extensions()
     register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
     register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
+	register_function("clamp", 3, 3, bf_clamp, TYPE_NUMERIC, TYPE_NUMERIC, TYPE_NUMERIC);
 }
