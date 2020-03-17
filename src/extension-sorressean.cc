@@ -2,6 +2,7 @@
 * While not all of these extensions are mine, this file exists to separate the functions I add to this fork away from the lisdude extensions.
 * This should theoretically mean that life doesn't break when I merge every time.
 */
+#include "background.h"
 #include "collection.h" //ismember
 #include "db.h"
 #include "db_private.h"
@@ -12,7 +13,22 @@
 #include "utils.h" //free_var plus many others
 #include <sstream>
 #include <vector>
+
 #include <boost/algorithm/clamp.hpp>
+
+#include <boost/accumulators/accumulators.hpp>
+#include <boost/accumulators/statistics/stats.hpp>
+#include <boost/accumulators/statistics/mean.hpp>
+#include <boost/accumulators/statistics/kurtosis.hpp>
+#include <boost/accumulators/statistics/count.hpp>
+#include <boost/accumulators/statistics/max.hpp>
+#include <boost/accumulators/statistics/min.hpp>
+#include <boost/accumulators/statistics/skewness.hpp>
+#include <boost/accumulators/statistics/sum.hpp>
+#include <boost/accumulators/statistics/variance.hpp>
+
+using namespace std;
+using namespace boost::accumulators;
 
 static Var
 list_assoc(Var vtarget, Var vlist, const int vindex)
@@ -408,6 +424,48 @@ bf_clamp(Var arglist, Byte next, void *vdata, Objid progr)
 			return make_var_pack(returnVar);
 }
 
+/*
+*Collects various stats.
+*/
+static void collect_stats_callback(Var arglist, Var* ret)
+{
+*ret = new_map();
+vector<double> values;
+const auto listLength = arglist.v.list[1].v.list[0].v.num;
+for (unsigned int i = 1; i <= listLength; ++i)
+{
+	const auto elementType = arglist.v.list[1].v.list[i].type;
+	if (elementType != TYPE_INT && elementType != TYPE_FLOAT)
+	{
+		free_var(arglist);
+		return;
+	}
+	values.push_back((elementType == TYPE_INT? arglist.v.list[1].v.list[i].v.num : arglist.v.list[1].v.list[i].v.fnum));
+}
+
+accumulator_set<double, stats<tag::variance(lazy), tag::sum, tag::skewness, tag::min, tag::max, tag::kurtosis, tag::count, tag::mean>> acc;
+for (const auto& value: values)
+{
+	acc(value);
+}
+    *ret = mapinsert(*ret, str_dup_to_var("count"), Var::new_int(boost::accumulators::count(acc)));
+	*ret = mapinsert(*ret, str_dup_to_var("kurtosis"), Var::new_float(kurtosis(acc)));
+	*ret = mapinsert(*ret, str_dup_to_var("max"), Var::new_float(boost::accumulators::max(acc)));
+	*ret = mapinsert(*ret, str_dup_to_var("min"), Var::new_float(boost::accumulators::min(acc)));
+		*ret = mapinsert(*ret, str_dup_to_var("mean"), Var::new_float(boost::accumulators::mean(acc)));
+				*ret = mapinsert(*ret, str_dup_to_var("skewness"), Var::new_float(boost::accumulators::skewness(acc)));
+		*ret = mapinsert(*ret, str_dup_to_var("sum"), Var::new_float(boost::accumulators::sum(acc)));
+		*ret = mapinsert(*ret, str_dup_to_var("variance"), Var::new_float(boost::accumulators::variance(acc)));
+}
+
+static package
+bf_collect_stats(Var arglist, Byte next, void *vdata, Objid progr)
+{
+char *human_string = nullptr;
+    asprintf(&human_string, "collecting stats for %" PRIdN " element list", arglist.v.list[1].v.list[0].v.num);
+return background_thread(collect_stats_callback, &arglist, human_string);
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -426,4 +484,5 @@ void register_sorressean_extensions()
     register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
     register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
 	register_function("clamp", 3, 3, bf_clamp, TYPE_NUMERIC, TYPE_NUMERIC, TYPE_NUMERIC);
+	register_function("collect_stats", 1, 1, bf_collect_stats, TYPE_LIST);
 }
