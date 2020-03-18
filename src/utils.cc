@@ -392,8 +392,6 @@ is_true(const Var& v)
             return v.v.list[0].v.num != 0;
         case TYPE_MAP:
             return !mapempty(v);
-			case TYPE_WAIF:
-			return true;
         default:
             return 0;
     }

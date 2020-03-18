@@ -457,12 +457,9 @@ anon_valid(Object *o)
 int
 is_valid(Var obj)
 {
-	if (obj.type == TYPE_ANON)
-	               return anon_valid(obj.v.anon);
-			   else if (obj.type == TYPE_WAIF)
-	return (obj.v.waif != nullptr && valid(obj.v.waif->_class));
-else
-           return valid(obj.v.obj);
+    return (TYPE_ANON == obj.type) ?
+           anon_valid(obj.v.anon) :
+           valid(obj.v.obj);
 }
 
 Objid

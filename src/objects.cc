@@ -285,11 +285,11 @@ bf_valid(Var arglist, Byte next, void *vdata, Objid progr)
 {				/* (object) */
     Var r;
 
-    if (arglist.v.list[1].is_object() || arglist.v.list[1].type == TYPE_WAIF) {
+    if (arglist.v.list[1].is_object()) {
 	r.type = TYPE_INT;
 	r.v.num = is_valid(arglist.v.list[1]);
     }
-	else {
+    else {
 	free_var(arglist);
 	return make_error_pack(E_TYPE);
     }
