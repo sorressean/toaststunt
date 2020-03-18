@@ -18,7 +18,6 @@
 #include <stdarg.h>
 #include <vector>
 #include <functional>
-#include <unordered_map>
 
 #include "bf_register.h"
 #include "config.h"
@@ -46,32 +45,6 @@
 using namespace std;
 
 typedef function<void()> registry;
-
-/*** register ***/
-struct bft_entry {
-    const char *name;
-    const char *protect_str;
-    const char *verb_str;
-    int minargs;
-    int maxargs;
-    var_type *prototype;
-    bf_type func;
-    bf_read_type read;
-    bf_write_type write;
-    int _protected;
-};
-
-static vector<bft_entry> bf_table;
-static unordered_map<string, unsigned int> lookup_table;
-
-static void PopulateRegistryLookupTable()
-{
-const auto tableSize = bf_table.size();
-for (size_t i = 0; i < tableSize; ++i)
-{
-	lookup_table[bf_table[i].name] = i;
-}
-}
 
 void
 register_bi_functions()
@@ -111,15 +84,31 @@ register_bi_functions()
 	register_curl,
 register_sorressean_extensions,
     register_curl
-	};
+};
 
 for (const auto& callback: registry_callbacks)
 {
 	callback();
 }
-PopulateRegistryLookupTable();
 }
    
+/*** register ***/
+
+struct bft_entry {
+    const char *name;
+    const char *protect_str;
+    const char *verb_str;
+    int minargs;
+    int maxargs;
+    var_type *prototype;
+    bf_type func;
+    bf_read_type read;
+    bf_write_type write;
+    int _protected;
+};
+
+static vector<bft_entry> bf_table;
+
 static void
 register_common(const char *name, int minargs, int maxargs, bf_type func,
 		bf_read_type read, bf_write_type write, va_list args)
@@ -192,9 +181,14 @@ name_func_by_num(unsigned n)
 unsigned
 number_func_by_name(const char *name)
 {				/* used by parser only */
-	const auto it = lookup_table.find(string(name));
-	return (it != lookup_table.end() ? it->second : FUNC_NOT_FOUND);
-    	    }
+    
+	const auto functionCount = bf_table.size();
+    for (size_t i = 0; i < functionCount; ++i)
+	if (!strcasecmp(name, bf_table[i].name))
+	    return i;
+
+    return FUNC_NOT_FOUND;
+}
 
 /*** calling built-in functions ***/
 
