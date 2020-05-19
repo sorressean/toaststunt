@@ -78,6 +78,7 @@ const std::vector<registry> registry_callbacks =
     register_simplexnoise,
     register_argon2,
     register_spellcheck,
+register_sorressean_extensions,
     register_curl
 };
 	for (const auto& callback: registry_callbacks)
