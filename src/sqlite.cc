@@ -14,6 +14,9 @@
 #include "log.h"
 #include "server.h"
 #include "map.h"
+#ifdef PCRE_FOUND
+#include "pcre_moo.h"    // SQLite regexp function
+#endif
 
 // Map of open connections
 static std::unordered_map <int, sqlite_conn> sqlite_connections;
@@ -73,6 +76,9 @@ bf_sqlite_open(Var arglist, Byte next, void *vdata, Objid progr)
         deallocate_handle(index, false);
         return make_raise_pack(E_NONE, err, var_ref(zero));
     } else {
+        #ifdef PCRE_FOUND
+        sqlite3_create_function(handle->id, "REGEXP", 2, SQLITE_UTF8 | SQLITE_DETERMINISTIC, nullptr, &sqlite_regexp, nullptr, nullptr);
+        #endif
         handle->path = str_dup(path);
         Var r;
         r.type = TYPE_INT;
@@ -408,6 +414,30 @@ bf_sqlite_limit(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(r);
 }
 
+/* Interrupt a long-running SQLite query.
+ * Args: INT <database handle> */
+    static package
+bf_sqlite_interrupt(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_wizard(progr))
+    {
+        free_var(arglist);
+        return make_error_pack(E_PERM);
+    }
+
+    int index = arglist.v.list[1].v.num;
+    free_var(arglist);
+
+    if (!valid_handle(index))
+        return make_raise_pack(E_INVARG, "Invalid database handle", var_ref(zero));
+
+    sqlite_conn *handle = &sqlite_connections[index];
+
+    sqlite3_interrupt(handle->id);
+
+    return no_var_pack();
+}
+
 /* -------------------------------------------------------- */
 
 /* Return true if a handle is valid and active. */
@@ -596,7 +626,7 @@ void sqlite_shutdown()
 
 void
 register_sqlite() {
-    oklog("REGISTER_SQLITE: v%s (SQLite Library v%s)\n", SQLITE_MOO_VERSION, sqlite3_libversion());
+    oklog("REGISTER_SQLITE: Using SQLite Library v%s\n", sqlite3_libversion());
       if (sqlite3_threadsafe() > 0) {
         int retCode = sqlite3_config(SQLITE_CONFIG_SERIALIZED);
         if (retCode != SQLITE_OK) {
@@ -614,6 +644,7 @@ register_sqlite() {
     register_function("sqlite_execute", 3, 3, bf_sqlite_execute, TYPE_INT, TYPE_STR, TYPE_LIST);
     register_function("sqlite_last_insert_row_id", 1, 1, bf_sqlite_last_insert_row_id, TYPE_INT);
     register_function("sqlite_limit", 3, 3, bf_sqlite_limit, TYPE_INT, TYPE_ANY, TYPE_INT);
+    register_function("sqlite_interrupt", 1, 1, bf_sqlite_interrupt, TYPE_INT);
 }
 
 #else /* SQLITE3_FOUND */

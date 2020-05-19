@@ -62,6 +62,7 @@ enum abort_reason {
 package make_abort_pack(enum abort_reason reason);
 package make_error_pack(enum error err);
 package make_raise_pack(enum error err, const char *msg, Var value);
+package make_raise_x_not_found_pack(enum error err, const char *msg);
 package make_var_pack(Var v);
 package no_var_pack(void);
 package make_call_pack(Byte pc, void *data);
@@ -74,7 +75,8 @@ typedef package(*bf_type) (Var, Byte, void *, Objid);
 typedef void (*bf_write_type) (void *vdata);
 typedef void *(*bf_read_type) (void);
 
-
+#define FUNC_NOT_FOUND   -1
+   
 extern const char *name_func_by_num(unsigned);
 extern unsigned number_func_by_name(const char *);
 

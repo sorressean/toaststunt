@@ -392,6 +392,8 @@ is_true(const Var& v)
             return v.v.list[0].v.num != 0;
         case TYPE_MAP:
             return !mapempty(v);
+        case TYPE_BOOL:
+            return v.v.truth == true;
         default:
             return 0;
     }
@@ -439,9 +441,8 @@ compare(const Var &lhs, const Var &rhs, const int case_matters)
 int
 equality(const Var& lhs, const Var& rhs, const int case_matters)
 {
-    if (lhs.type != rhs.type)
-        return 0;
-        	switch (lhs.type) {
+if (lhs.type == rhs.type) {
+	switch (lhs.type) {
 	case TYPE_CLEAR:
 	    return 1;
 	case TYPE_NONE:
@@ -473,11 +474,21 @@ equality(const Var& lhs, const Var& rhs, const int case_matters)
 	    return lhs.v.anon == rhs.v.anon;
 	case TYPE_WAIF:
 		return lhs.v.waif == rhs.v.waif;
+	case TYPE_BOOL:
+	    return lhs.v.truth == rhs.v.truth;
 	default:
 	    panic_moo("EQUALITY: Unknown value type");
 	}
+    } else {
+	if (lhs.type == TYPE_BOOL && rhs.type == TYPE_INT) {
+	    return rhs.v.num == lhs.v.truth;
+	}
+	else         if (rhs.type == TYPE_BOOL && lhs.type == TYPE_INT) {
+	    return lhs.v.num == rhs.v.truth;
+	}
+    }
+    return 0;
 }
-
 void
 stream_add_strsub(Stream *str, const char *source, const char *what, const char *with, int case_counts)
 {

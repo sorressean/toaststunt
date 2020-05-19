@@ -33,6 +33,11 @@
 #include "unparse.h"
 #include "utils.h"
 
+typedef std::function<void()> registry;
+
+void
+register_bi_functions()
+{
 /*****************************************************************************
  * This is the table of procedures that register MOO built-in functions.  To
  * add new built-in functions to the server, add to the list below the name of
@@ -41,15 +46,7 @@
  * declaration of that C function to `bf_register.h' and add the necessary .c
  * files to the `CSRCS' line in the Makefile.
  ****************************************************************************/
-
-using namespace std;
-
-typedef function<void()> registry;
-
-void
-register_bi_functions()
-{
-	const vector<registry> registry_callbacks =
+const std::vector<registry> registry_callbacks =
 {
 #ifdef ENABLE_GC
     register_gc,
@@ -85,13 +82,12 @@ register_bi_functions()
 register_sorressean_extensions,
     register_curl
 };
-
-for (const auto& callback: registry_callbacks)
+	for (const auto& callback: registry_callbacks)
 {
 	callback();
 }
-}
-   
+    }
+
 /*** register ***/
 
 struct bft_entry {
@@ -107,7 +103,7 @@ struct bft_entry {
     int _protected;
 };
 
-static vector<bft_entry> bf_table;
+static std::vector<bft_entry> bf_table;
 
 static void
 register_common(const char *name, int minargs, int maxargs, bf_type func,
@@ -121,11 +117,11 @@ register_common(const char *name, int minargs, int maxargs, bf_type func,
 	s = new_stream(30);
 
 	bft_entry entry;
-entry.name = str_dup(name);
+    entry.name = str_dup(name);
     stream_printf(s, "protect_%s", name);
     entry.protect_str = str_dup(reset_stream(s));
     stream_printf(s, "bf_%s", name);
-entry.verb_str = str_dup(reset_stream(s));
+    entry.verb_str = str_dup(reset_stream(s));
     entry.minargs = minargs;
     entry.maxargs = maxargs;
     entry.func = func;
@@ -142,15 +138,15 @@ entry.verb_str = str_dup(reset_stream(s));
 	entry.prototype[va_index] = (var_type)va_arg(args, int);
 bf_table.push_back(entry);
     }
-
-void
+void 
 register_function(const char *name, int minargs, int maxargs,
 		  bf_type func,...)
 {
     va_list args;
-
+    
     va_start(args, func);
-     register_common(name, minargs, maxargs, func, nullptr, nullptr, args);
+    register_common(name, minargs, maxargs, func, nullptr, nullptr, args);
+
     va_end(args);
 }
 
@@ -160,19 +156,19 @@ register_function_with_read_write(const char *name, int minargs, int maxargs,
 				  bf_write_type write,...)
 {
     va_list args;
+
     va_start(args, write);
-     register_common(name, minargs, maxargs, func, read, write, args);
+    register_common(name, minargs, maxargs, func, read, write, args);
     va_end(args);
-}
+    }
 
 /*** looking up functions -- by name or num ***/
 
 static const char *func_not_found_msg = "no such function";
-
 const char *
 name_func_by_num(unsigned n)
 {				/* used by unparse only */
-    if (n >= bf_table.size()-1)
+    if (n >= bf_table.size())
 	return func_not_found_msg;
     else
 	return bf_table[n].name;
@@ -198,16 +194,15 @@ call_bi_func(unsigned n, Var arglist, Byte func_pc,
      /* requires arglist.type == TYPE_LIST
         call_bi_func will free arglist */
 {
-     bft_entry *f;
-
-const auto functionCount = bf_table.size()-1;
-    if (n >= functionCount) {
+	const auto functionCount = bf_table.size();
+	
+     if (n >= functionCount) {
 	errlog("CALL_BI_FUNC: Unknown function number: %d\n", n);
 	free_var(arglist);
 	return no_var_pack();
     }
-    f = &(bf_table[n]);
-
+	
+    const auto f = bf_table[n];
     if (func_pc == 1) {		/* check arg types and count *ONLY* for first entry */
 	int k, max;
 	Var *args = arglist.v.list;
@@ -215,9 +210,9 @@ const auto functionCount = bf_table.size()-1;
 	/*
 	 * Check permissions, if protected
 	 */
-	if ((!caller().is_obj() || caller().v.obj != SYSTEM_OBJECT) && f->_protected) {
+	if ((!caller().is_obj() || caller().v.obj != SYSTEM_OBJECT) && f._protected) {
 	    /* Try calling #0:bf_FUNCNAME(@ARGS) instead */
-	    enum error e = call_verb2(SYSTEM_OBJECT, f->verb_str, Var::new_obj(SYSTEM_OBJECT), arglist, 0, get_thread_mode());
+	    enum error e = call_verb2(SYSTEM_OBJECT, f.verb_str, Var::new_obj(SYSTEM_OBJECT), arglist, 0, get_thread_mode());
 
 	    if (e == E_NONE)
 		return tail_call_pack();
@@ -231,18 +226,18 @@ const auto functionCount = bf_table.size()-1;
 	 * Check argument count
 	 * (Can't always check in the compiler, because of @)
 	 */
-	if (args[0].v.num < f->minargs
-	    || (f->maxargs != -1 && args[0].v.num > f->maxargs)) {
+	if (args[0].v.num < f.minargs
+	    || (f.maxargs != -1 && args[0].v.num > f.maxargs)) {
 	    free_var(arglist);
 	    return make_error_pack(E_ARGS);
 	}
 	/*
 	 * Check argument types
 	 */
-	max = (f->maxargs == -1) ? f->minargs : args[0].v.num;
+	max = (f.maxargs == -1) ? f.minargs : args[0].v.num;
 
 	for (k = 0; k < max; k++) {
-	    var_type proto = f->prototype[k];
+	    var_type proto = f.prototype[k];
 	    var_type arg = args[k + 1].type;
 
 	    if (!(proto == TYPE_ANY
@@ -262,14 +257,15 @@ const auto functionCount = bf_table.size()-1;
     /*
      * do the function
      */
-    return (*(f->func)) (arglist, func_pc, vdata, progr);
+    return (*(f.func)) (arglist, func_pc, vdata, progr);
     /* f->func is responsible for freeing/using up arglist. */
 }
 
 void
 write_bi_func_data(void *vdata, Byte f_id)
 {
-    if (f_id >= bf_table.size()-1)
+	const auto functionCount = bf_table.size();
+    if (f_id >= functionCount)
 	errlog("WRITE_BI_FUNC_DATA: Unknown function number: %d\n", f_id);
     else if (bf_table[f_id].write)
 	(*(bf_table[f_id].write)) (vdata);
@@ -287,8 +283,8 @@ int
 read_bi_func_data(Byte f_id, void **bi_func_state, Byte * bi_func_pc)
 {
     pc_for_bi_func_data_being_read = bi_func_pc;
-
-    if (f_id >= bf_table.size()-1) {
+const auto functionCount = bf_table.size();
+    if (f_id >= functionCount) {
 	errlog("READ_BI_FUNC_DATA: Unknown function number: %d\n", f_id);
 	*bi_func_state = nullptr;
 	return 0;
@@ -345,6 +341,18 @@ make_raise_pack(enum error err, const char *msg, Var value)
     p.u.raise.value = value;
 
     return p;
+}
+
+package
+make_raise_x_not_found_pack(enum error err, const char *msg)
+{
+	Var missing;
+	missing.type = TYPE_STR;
+	missing.v.str = str_dup(msg);
+	char *error_msg = nullptr;
+	asprintf(&error_msg, "%s: %s", unparse_error(err), msg);
+
+    return make_raise_pack(err, error_msg, missing);
 }
 
 package
@@ -449,19 +457,18 @@ static package
 bf_function_info(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var r;
-    unsigned int i;
 
     if (arglist.v.list[0].v.num == 1) {
-	i = number_func_by_name(arglist.v.list[1].v.str);
+	const auto i = number_func_by_name(arglist.v.list[1].v.str);
 	if (i == FUNC_NOT_FOUND) {
 	    free_var(arglist);
 	    return make_error_pack(E_INVARG);
 	}
 	r = function_description(i);
     } else {
-		const auto functionCount = bf_table.size();
+    const auto functionCount = bf_table.size();
 	r = new_list(functionCount);
-	for (size_t i = 0; i < functionCount; ++i)
+	for (size_t i = 0; i < functionCount; i++)
 	    r.v.list[i + 1] = function_description(i);
     }
 
@@ -473,7 +480,7 @@ static void
 load_server_protect_function_flags(void)
 {
     const auto functionCount = bf_table.size();
-    for (size_t i = 0; i < functionCount; ++i) {
+    for (size_t i = 0; i < functionCount; i++) {
 	bf_table[i]._protected
 	    = server_flag_option(bf_table[i].protect_str, 0);
     }

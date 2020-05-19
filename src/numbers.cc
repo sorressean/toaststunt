@@ -143,6 +143,9 @@ become_integer(Var in, Num *ret, int called_from_toint)
 	    return E_FLOAT;
 	*ret = (Num) in.v.fnum;
 	break;
+    case TYPE_BOOL:
+	*ret = in.v.truth;
+	break;
     case TYPE_MAP:
     case TYPE_LIST:
     case TYPE_ANON:
@@ -178,6 +181,7 @@ become_float(Var in, double *ret)
     case TYPE_LIST:
     case TYPE_ANON:
     case TYPE_WAIF:
+    case TYPE_BOOL:
 	return E_TYPE;
     default:
 	errlog("BECOME_FLOAT: Impossible var type: %d\n", (int) in.type);
@@ -522,21 +526,20 @@ bf_abs(Var arglist, Byte next, void *vdata, Objid progr)
 		static package						      \
 		bf_ ## name(Var arglist, Byte next, void *vdata, Objid progr) \
 		{							      \
-		    double	d;					      \
-									      \
-		    d = arglist.v.list[1].v.fnum;			      \
+		    const double d = arglist.v.list[1].v.fnum;			      \
 		    errno = 0;						      \
-		    d = name(arglist.v.list[1].v.fnum);					      \
+		    const auto result = name(arglist.v.list[1].v.fnum);					      \
 		    free_var(arglist);					      \
 		    if (errno == EDOM)					      \
 		        return make_error_pack(E_INVARG);		      \
-		    else if (errno != 0  ||  !IS_REAL(d))		      \
+		    else if (errno != 0  ||  !IS_REAL(result))		      \
 			return make_error_pack(E_FLOAT);		      \
 		    else						      \
-			return make_float_pack(d);		      \
+			return make_float_pack(result);		      \
 		}
 
 MATH_FUNC(sqrt)
+MATH_FUNC(cbrt)
 MATH_FUNC(sin)
 MATH_FUNC(cos)
 MATH_FUNC(tan)
@@ -545,6 +548,9 @@ MATH_FUNC(acos)
 MATH_FUNC(sinh)
 MATH_FUNC(cosh)
 MATH_FUNC(tanh)
+MATH_FUNC(acosh)
+MATH_FUNC(asinh)
+MATH_FUNC(atanh)
 MATH_FUNC(exp)
 MATH_FUNC(log)
 MATH_FUNC(log10)
@@ -590,6 +596,20 @@ bf_atan(Var arglist, Byte next, void *vdata, Objid progr)
 	return make_error_pack(E_FLOAT);
     else
         return make_float_pack(d);
+}
+
+static package
+bf_atan2(Var arglist, Byte next, void *vdata, Objid progr)
+{
+	const auto y = arglist.v.list[1].v.fnum;
+		const auto x = arglist.v.list[2].v.fnum;
+	free_var(arglist);
+		
+	const double result = atan2(y,x);
+	if (errno == EDOM)
+		return make_error_pack(E_INVARG);
+	else
+		return make_float_pack(result);
 }
 
 static package
@@ -655,7 +675,7 @@ bf_ctime(Var arglist, Byte next, void *vdata, Objid progr)
 #define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
 #endif
 
-/* Returns a float of the time (including milliseconds)
+/* Returns a float representing seconds and nanoseconds since the Epoch.
    Optional arguments specify monotonic time; 1: Monotonic. 2. Monotonic raw.
    (seconds since an arbitrary period of time. More useful for timing
    since its not affected by NTP or other time changes.) */
@@ -920,6 +940,7 @@ register_numbers(void)
 		      TYPE_FLOAT, TYPE_INT, TYPE_ANY);
 
     register_function("sqrt", 1, 1, bf_sqrt, TYPE_FLOAT);
+	register_function("cbrt", 1, 1, bf_cbrt, TYPE_FLOAT);
     register_function("sin", 1, 1, bf_sin, TYPE_FLOAT);
     register_function("cos", 1, 1, bf_cos, TYPE_FLOAT);
     register_function("tan", 1, 1, bf_tan, TYPE_FLOAT);
@@ -929,6 +950,10 @@ register_numbers(void)
     register_function("sinh", 1, 1, bf_sinh, TYPE_FLOAT);
     register_function("cosh", 1, 1, bf_cosh, TYPE_FLOAT);
     register_function("tanh", 1, 1, bf_tanh, TYPE_FLOAT);
+	register_function("acosh", 1, 1, bf_acosh, TYPE_FLOAT);
+	register_function("atanh", 1, 1, bf_atanh, TYPE_FLOAT);
+	register_function("asinh", 1, 1, bf_asinh, TYPE_FLOAT);
+	register_function("atan2", 2, 2, bf_atan2, TYPE_FLOAT, TYPE_FLOAT);
     register_function("exp", 1, 1, bf_exp, TYPE_FLOAT);
     register_function("log", 1, 1, bf_log, TYPE_FLOAT);
     register_function("log10", 1, 1, bf_log10, TYPE_FLOAT);

@@ -45,6 +45,7 @@
 #include "waif.h"
 #include "version.h"
 #include "background.h"
+#include "unparse.h"
 
 /* the following globals are the guts of the virtual machine: */
 static activation *activ_stack = nullptr;
@@ -427,12 +428,31 @@ find_handler_activ(Var code)
     return -1;
 }
 
+Var
+make_rt_var_map(Var * rt_env, const char **var_names, unsigned size)
+{
+    Var rt_vars = new_map();
+    int i;
+
+    for (i = 0; i < size; ++i) {
+	if (rt_env[i].type != TYPE_NONE)
+	    rt_vars = mapinsert(rt_vars, str_ref_to_var(var_names[i]), var_ref(rt_env[i]));
+    }
+
+    return rt_vars;
+}
+
 static Var
 make_stack_list(activation * stack, int start, int end, int include_end,
-		int root_vector, int line_numbers_too, Objid progr)
+		int root_vector, int line_numbers_too, int include_variables, Objid progr)
 {
-    Var r;
-    int count = 0, i, j;
+    Var r, rt_vars;
+    int count = 0, listlen = 5, i, j, k;
+
+    if (line_numbers_too)
+	listlen++;
+    if (include_variables)
+	listlen++;
 
     for (i = end; i >= start; i--) {
 	if (include_end || i != end)
@@ -447,22 +467,26 @@ make_stack_list(activation * stack, int start, int end, int include_end,
 	Var v;
 
 	if (include_end || i != end) {
-	    v = r.v.list[j++] = new_list(line_numbers_too ? 6 : 5);
+	    v = r.v.list[j++] = new_list(listlen);
 	    v.v.list[1] = anonymizing_var_ref(stack[i]._this, progr);
 	    v.v.list[2] = str_ref_to_var(stack[i].verb);
 	    v.v.list[3] = Var::new_obj(stack[i].progr);
 	    v.v.list[4] = anonymizing_var_ref(stack[i].vloc, progr);
 	    v.v.list[5] = Var::new_obj(stack[i].player);
 	    if (line_numbers_too) {
-		v.v.list[6].type = TYPE_INT;
-		v.v.list[6].v.num = find_line_number(stack[i].prog,
+		v.v.list[include_variables ? listlen-1 : listlen].type = TYPE_INT;
+		v.v.list[include_variables ? listlen-1 : listlen].v.num = find_line_number(stack[i].prog,
 						     (i == 0 ? root_vector
 						      : MAIN_VECTOR),
 						     stack[i].error_pc);
 	    }
+	    if (include_variables) {
+		v.v.list[listlen].type = TYPE_MAP;
+		v.v.list[listlen] = make_rt_var_map(stack[i].rt_env, stack[i].prog->var_names, stack[i].prog->num_var_names);
+	    }
 	}
 	if (i != start && stack[i].bi_func_pc) {
-	    v = r.v.list[j++] = new_list(line_numbers_too ? 6 : 5);
+	    v = r.v.list[j++] = new_list(listlen);
 	    v.v.list[1].type = TYPE_OBJ;
 	    v.v.list[1].v.obj = NOTHING;
 	    v.v.list[2].type = TYPE_STR;
@@ -474,8 +498,12 @@ make_stack_list(activation * stack, int start, int end, int include_end,
 	    v.v.list[5].type = TYPE_OBJ;
 	    v.v.list[5].v.obj = stack[i].player;
 	    if (line_numbers_too) {
-		v.v.list[6].type = TYPE_INT;
-		v.v.list[6].v.num = stack[i].bi_func_pc;
+		v.v.list[include_variables ? listlen-1 : listlen].type = TYPE_INT;
+		v.v.list[include_variables ? listlen-1 : listlen].v.num = stack[i].bi_func_pc;
+	    }
+	    if (include_variables) {
+		v.v.list[listlen].type = TYPE_MAP;
+		v.v.list[listlen] = make_rt_var_map(stack[i].rt_env, stack[i].prog->var_names, stack[i].prog->num_var_names);
 	    }
 	}
     }
@@ -503,6 +531,7 @@ raise_error(package p, enum outcome *outcome)
 {
     /* ASSERT: p.kind == package::BI_RAISE */
     int handler_activ = find_handler_activ(p.u.raise.code);
+    int include_vars = server_int_option("INCLUDE_RT_VARS", 0);
     Finally_Reason why;
     Var value;
 
@@ -521,7 +550,7 @@ raise_error(package p, enum outcome *outcome)
     value.v.list[3] = p.u.raise.value;
     value.v.list[4] = make_stack_list(activ_stack, handler_activ,
 				      top_activ_stack, 1,
-				      root_activ_vector, 1,
+				      root_activ_vector, 1, include_vars,
 				      NOTHING);
 
     if (why == FIN_UNCAUGHT) {
@@ -557,7 +586,7 @@ abort_task(enum abort_reason reason)
 	value.v.list[1].type = TYPE_STR;
 	value.v.list[1].v.str = str_dup(htag);
 	value.v.list[2] = make_stack_list(activ_stack, 0, top_activ_stack, 1,
-					  root_activ_vector, 1,
+					  root_activ_vector, 1, server_int_option("INCLUDE_RT_VARS", 0),
 					  NOTHING);
 	value.v.list[3] = error_backtrace_list(msg);
 	save_handler_info("handle_task_timeout", value);
@@ -827,12 +856,38 @@ do {							\
     } 							\
 } while (0)
 
+#define RAISE_ERROR_WITH_VALUE(the_err, the_msg, the_value) \
+do { \
+    if (RUN_ACTIV.debug) { \
+    STORE_STATE_VARIABLES(); \
+    if (raise_error(make_raise_pack(the_err, the_msg, the_value), 0)) { \
+		/* No try-except */ \
+        return OUTCOME_ABORTED; \
+	} else { \
+        LOAD_STATE_VARIABLES(); \
+		free(the_msg); \
+        goto next_opcode; \
+        } \
+    } \
+} while (0)
+
 #define PUSH_ERROR(the_err)					\
 do {    							\
     RAISE_ERROR(the_err);	/* may not return!! */		\
     error_var.type = TYPE_ERR;					\
     error_var.v.err = the_err;					\
     PUSH(error_var);						\
+} while (0)
+
+/* NOTE: the_msg will be freed */
+#define PUSH_RAISED_ERROR(the_err, the_msg, the_value) \
+do { \
+    RAISE_ERROR_WITH_VALUE(the_err, the_msg, the_value); /* may not return */ \
+	free(the_msg); \
+	free_var(the_value); \
+    error_var.type = TYPE_ERR; \
+    error_var.v.err = the_err; \
+    PUSH(error_var); \
 } while (0)
 
 #define PUSH_ERROR_UNLESS_QUOTA(the_err)			\
@@ -849,6 +904,17 @@ do {								\
     else							\
 	PUSH_ERROR(the_err);					\
 } while (0)
+
+#define RAISE_X_NOT_FOUND(the_err, the_missing) \
+do { \
+	Var missing;																		\
+	missing.type = TYPE_STR;															\
+	missing.v.str = str_dup(the_missing);												\
+	char *error_msg = nullptr;															\
+	asprintf(&error_msg, "%s: %s", unparse_error(the_err), the_missing);				\
+	PUSH_RAISED_ERROR(the_err, error_msg, missing);									    \
+} while (0)
+
 
 #define JUMP(label)     (bv = bc.vector + label)
 
@@ -986,7 +1052,7 @@ do {								\
 		key = POP(); /* any except list or map */
 		value = POP(); /* any */
 		map = POP(); /* should be map */
-		if (map.type != TYPE_MAP || (key.is_collection() && TYPE_ANON != key.type)) {
+		if (map.type != TYPE_MAP || (key.is_collection() && TYPE_ANON != key.type) || TYPE_BOOL == key.type) {
 		    free_var(key);
 		    free_var(value);
 		    free_var(map);
@@ -1644,9 +1710,11 @@ do {								\
 	    {
 		Var value;
 
-		value = RUN_ACTIV.rt_env[READ_BYTES(bv, bc.numbytes_var_name)];
-		if (value.type == TYPE_NONE)
-		    PUSH_ERROR(E_VARNF);
+		int var_pos = READ_BYTES(bv, bc.numbytes_var_name);
+		value = RUN_ACTIV.rt_env[var_pos];
+		if (value.type == TYPE_NONE) {
+			RAISE_X_NOT_FOUND(E_VARNF, *(&RUN_ACTIV.prog->var_names[var_pos]));
+		}
 		else
 		    PUSH_REF(value);
 	    }
@@ -1683,12 +1751,14 @@ do {								\
 		    h = db_find_property(obj, propname.v.str, &prop);
 		    built_in = db_is_property_built_in(h);
 
-		    free_var(propname);
 		    free_var(obj);
 
 		    if (!h.ptr)
-			PUSH_ERROR(E_PROPNF);
-		    else if (built_in
+			RAISE_X_NOT_FOUND(E_PROPNF, propname.v.str);
+		    else {
+			free_var(propname);
+
+			 if (built_in
 			 ? bi_prop_protected(built_in, RUN_ACTIV.progr)
 		      : !db_property_allows(h, RUN_ACTIV.progr, PF_READ))
 			PUSH_ERROR(E_PERM);
@@ -1698,6 +1768,7 @@ do {								\
 			PUSH_REF(prop);
 		}
 	    }
+		}
 	    break;
 
 	case OP_PUSH_GET_PROP:
@@ -1725,7 +1796,7 @@ do {								\
 		    h = db_find_property(obj, propname.v.str, &prop);
 		    built_in = db_is_property_built_in(h);
 		    if (!h.ptr)
-			PUSH_ERROR(E_PROPNF);
+			RAISE_X_NOT_FOUND(E_PROPNF, propname.v.str);
 		    else if (built_in
 			 ? bi_prop_protected(built_in, RUN_ACTIV.progr)
 		      : !db_property_allows(h, RUN_ACTIV.progr, PF_READ))
@@ -1749,13 +1820,18 @@ do {								\
 			enum error err;
 
 			err = waif_put_prop(obj.v.waif, propname.v.str, rhs, RUN_ACTIV.progr);
-			free_var(propname);
 			free_var(obj);
 			if (err == E_NONE) {
+				free_var(propname);
 				PUSH(rhs);
 			} else {
 				free_var(rhs);
-				PUSH_ERROR(err);
+				if (err == E_PROPNF)
+					RAISE_X_NOT_FOUND(E_PROPNF, propname.v.str);
+				else {
+					free_var(propname);
+					PUSH_ERROR(err);
+				}
 			}
 		} else if (!obj.is_object() || propname.type != TYPE_STR) {
 		    free_var(rhs);
@@ -1839,18 +1915,22 @@ do {								\
 			}
 		    }
 
-		    free_var(propname);
 		    free_var(obj);
 
-		    if (err == E_NONE) {
-			db_set_property_value(h, var_ref(rhs));
-			PUSH(rhs);
-		    } else {
-			free_var(rhs);
-			PUSH_ERROR(err);
-		    }
-		}
+			if (err == E_PROPNF) {
+				RAISE_X_NOT_FOUND(E_PROPNF, propname.v.str);
+			} else {
+				free_var(propname);
+		    	if (err == E_NONE) {
+				db_set_property_value(h, var_ref(rhs));
+				PUSH(rhs);
+		  	 	} else {
+					free_var(rhs);
+					PUSH_ERROR(err);
+		    	}
+				}
 	    }
+		}
 	    break;
 
 	case OP_FORK:
@@ -1952,6 +2032,10 @@ MATCH_TYPE(OBJ, obj)
 			err = E_TYPE;
 		}
 		free_var(obj);
+
+		if (err == E_VERBNF)
+			RAISE_X_NOT_FOUND(E_VERBNF, verb.v.str);
+			else {
 		free_var(verb);
 
 		if (err != E_NONE) {	/* there is an error, RUN_ACTIV unchanged,
@@ -1960,6 +2044,7 @@ MATCH_TYPE(OBJ, obj)
 		    PUSH_ERROR(err);
 		}
 	    }
+		}
 	    break;
 
 	case OP_RETURN:
@@ -2659,7 +2744,7 @@ MATCH_TYPE(OBJ, obj)
 		value = RUN_ACTIV.rt_env[PUSH_n_INDEX(op)];
 		if (value.type == TYPE_NONE) {
 		    free_var(value);
-		    PUSH_ERROR(E_VARNF);
+			RAISE_X_NOT_FOUND(E_VARNF, *(&RUN_ACTIV.prog->var_names[PUSH_n_INDEX(op)]));
 		} else
 		    PUSH_REF(value);
 	    }
@@ -2702,7 +2787,7 @@ MATCH_TYPE(OBJ, obj)
 		Var *vp;
 		vp = &RUN_ACTIV.rt_env[PUSH_CLEAR_n_INDEX(op)];
 		if (vp->type == TYPE_NONE) {
-		    PUSH_ERROR(E_VARNF);
+			RAISE_X_NOT_FOUND(E_VARNF, *(&RUN_ACTIV.prog->var_names[PUSH_CLEAR_n_INDEX(op)]));
 		} else {
 		    PUSH(*vp);
 		    vp->type = TYPE_NONE;
@@ -2851,7 +2936,7 @@ run_interpreter(char raise, enum error e,
 		if (handle.ptr)
 		{
 			Var lag_info = new_list(2);
-			lag_info.v.list[1] = make_stack_list(activ_stack, 0, top_activ_stack, 0, root_activ_vector, 1, RUN_ACTIV.progr);
+			lag_info.v.list[1] = make_stack_list(activ_stack, 0, top_activ_stack, 0, root_activ_vector, 1, server_int_option("INCLUDE_RT_VARS", 0), RUN_ACTIV.progr);
 			lag_info.v.list[2] = total_cputime;
 			do_server_verb_task(Var::new_obj(SYSTEM_OBJECT), "handle_lagging_task", lag_info, handle, activ_stack[0].player, "", nullptr, 0);
 		}
@@ -3392,7 +3477,11 @@ bf_pass(Var arglist, Byte next, void *vdata, Objid progr)
 	return tail_call_pack();
 
     free_var(arglist);
-    return make_error_pack(e);
+
+	if (e == E_VERBNF)
+		return make_raise_x_not_found_pack(e, RUN_ACTIV.verb);
+	else
+ 	   return make_error_pack(e);
 }
 
 static package
@@ -3443,7 +3532,7 @@ bf_callers(Var arglist, Byte next, void *vdata, Objid progr)
     free_var(arglist);
 
     return make_var_pack(make_stack_list(activ_stack, 0, top_activ_stack, 0,
-				   root_activ_vector, line_numbers_too,
+				   root_activ_vector, line_numbers_too, 0,
 				   progr));
 }
 
@@ -3453,6 +3542,7 @@ bf_task_stack(Var arglist, Byte next, void *vdata, Objid progr)
     int nargs = arglist.v.list[0].v.num;
     int id = arglist.v.list[1].v.num;
     int line_numbers_too = (nargs >= 2 && is_true(arglist.v.list[2]));
+    int stack_vars = (nargs >= 3 && is_true(arglist.v.list[3]));
     vm the_vm = find_suspended_task(id);
     Objid owner = (the_vm ? progr_of_cur_verb(the_vm) : NOTHING);
 
@@ -3466,6 +3556,7 @@ bf_task_stack(Var arglist, Byte next, void *vdata, Objid progr)
 					 the_vm->top_activ_stack, 1,
 					 the_vm->root_activ_vector,
 					 line_numbers_too,
+					 stack_vars,
 					 progr));
 }
 
@@ -3489,7 +3580,7 @@ register_execute(void)
     register_function("task_perms", 0, 0, bf_task_perms);
     register_function("caller_perms", 0, 0, bf_caller_perms);
     register_function("callers", 0, 1, bf_callers, TYPE_ANY);
-    register_function("task_stack", 1, 2, bf_task_stack, TYPE_INT, TYPE_ANY);
+    register_function("task_stack", 1, 3, bf_task_stack, TYPE_INT, TYPE_ANY, TYPE_ANY);
 
 #ifdef WAIF_DICT
     waif_index_verb = str_dup(WAIF_INDEX_VERB);
