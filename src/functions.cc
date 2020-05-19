@@ -33,12 +33,13 @@
 #include "unparse.h"
 #include "utils.h"
 
-typedef std::function<void()> registry;
+using namespace std;
+typedef function<void()> registry;
 
 void
 register_bi_functions()
 {
-/*****************************************************************************
+	/*****************************************************************************
  * This is the table of procedures that register MOO built-in functions.  To
  * add new built-in functions to the server, add to the list below the name of
  * a C function that will register your new MOO built-ins; your C function will
@@ -46,7 +47,7 @@ register_bi_functions()
  * declaration of that C function to `bf_register.h' and add the necessary .c
  * files to the `CSRCS' line in the Makefile.
  ****************************************************************************/
-const std::vector<registry> registry_callbacks =
+	const vector<registry> registry_callbacks =
 {
 #ifdef ENABLE_GC
     register_gc,
@@ -78,7 +79,6 @@ const std::vector<registry> registry_callbacks =
     register_simplexnoise,
     register_argon2,
     register_spellcheck,
-register_sorressean_extensions,
     register_curl
 };
 	for (const auto& callback: registry_callbacks)
@@ -102,7 +102,7 @@ struct bft_entry {
     int _protected;
 };
 
-static std::vector<bft_entry> bf_table;
+static vector<bft_entry> bf_table;
 
 static void
 register_common(const char *name, int minargs, int maxargs, bf_type func,
@@ -116,11 +116,11 @@ register_common(const char *name, int minargs, int maxargs, bf_type func,
 	s = new_stream(30);
 
 	bft_entry entry;
-    entry.name = str_dup(name);
+entry.name = str_dup(name);
     stream_printf(s, "protect_%s", name);
     entry.protect_str = str_dup(reset_stream(s));
     stream_printf(s, "bf_%s", name);
-    entry.verb_str = str_dup(reset_stream(s));
+entry.verb_str = str_dup(reset_stream(s));
     entry.minargs = minargs;
     entry.maxargs = maxargs;
     entry.func = func;
@@ -168,7 +168,7 @@ static const char *func_not_found_msg = "no such function";
 const char *
 name_func_by_num(unsigned n)
 {				/* used by unparse only */
-    if (n >= bf_table.size())
+    if (n >= bf_table.size()-1)
 	return func_not_found_msg;
     else
 	return bf_table[n].name;
@@ -344,18 +344,6 @@ make_raise_pack(enum error err, const char *msg, Var value)
 }
 
 package
-make_raise_x_not_found_pack(enum error err, const char *msg)
-{
-	Var missing;
-	missing.type = TYPE_STR;
-	missing.v.str = str_dup(msg);
-	char *error_msg = nullptr;
-	asprintf(&error_msg, "%s: %s", unparse_error(err), msg);
-
-    return make_raise_pack(err, error_msg, missing);
-}
-
-package
 make_var_pack(Var v)
 {
     package p;
@@ -458,7 +446,7 @@ bf_function_info(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var r;
 
-    if (arglist.v.list[0].v.num == 1) {
+        if (arglist.v.list[0].v.num == 1) {
 	const auto i = number_func_by_name(arglist.v.list[1].v.str);
 	if (i == FUNC_NOT_FOUND) {
 	    free_var(arglist);
@@ -466,7 +454,7 @@ bf_function_info(Var arglist, Byte next, void *vdata, Objid progr)
 	}
 	r = function_description(i);
     } else {
-    const auto functionCount = bf_table.size();
+		const auto functionCount = bf_table.size();
 	r = new_list(functionCount);
 	for (size_t i = 0; i < functionCount; i++)
 	    r.v.list[i + 1] = function_description(i);
