@@ -95,5 +95,4 @@ extern Byte *pc_for_bi_func_data(void);
 
 extern void load_server_options(void);
 
-#define FUNC_NOT_FOUND -1
 #endif

@@ -78,8 +78,6 @@ const std::vector<registry> registry_callbacks =
     register_simplexnoise,
     register_argon2,
     register_spellcheck,
-	register_curl,
-register_sorressean_extensions,
     register_curl
 };
 	for (const auto& callback: registry_callbacks)
@@ -138,6 +136,7 @@ register_common(const char *name, int minargs, int maxargs, bf_type func,
 	entry.prototype[va_index] = (var_type)va_arg(args, int);
 bf_table.push_back(entry);
     }
+	
 void 
 register_function(const char *name, int minargs, int maxargs,
 		  bf_type func,...)
@@ -146,7 +145,6 @@ register_function(const char *name, int minargs, int maxargs,
     
     va_start(args, func);
     register_common(name, minargs, maxargs, func, nullptr, nullptr, args);
-
     va_end(args);
 }
 
@@ -156,6 +154,7 @@ register_function_with_read_write(const char *name, int minargs, int maxargs,
 				  bf_write_type write,...)
 {
     va_list args;
+
 
     va_start(args, write);
     register_common(name, minargs, maxargs, func, read, write, args);
@@ -195,14 +194,14 @@ call_bi_func(unsigned n, Var arglist, Byte func_pc,
         call_bi_func will free arglist */
 {
 	const auto functionCount = bf_table.size();
-	
-     if (n >= functionCount) {
+    
+    if (n >= functionCount) {
 	errlog("CALL_BI_FUNC: Unknown function number: %d\n", n);
 	free_var(arglist);
 	return no_var_pack();
     }
-	
     const auto f = bf_table[n];
+
     if (func_pc == 1) {		/* check arg types and count *ONLY* for first entry */
 	int k, max;
 	Var *args = arglist.v.list;
