@@ -10,12 +10,14 @@
 #include "log.h"
 #include "background.h"
 
+static CURL *curl_handle = nullptr;
+
 typedef struct CurlMemoryStruct {
     char *result;
     size_t size;
 } CurlMemoryStruct;
 
-    static size_t
+static size_t
 CurlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
 {
     size_t realsize = size * nmemb;
@@ -28,7 +30,7 @@ CurlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
         return 0;
     }
 
-    mem->result= ptr;
+    mem->result = ptr;
     memcpy(&(mem->result[mem->size]), contents, realsize);
     mem->size += realsize;
     mem->result[mem->size] = 0;
@@ -69,7 +71,7 @@ void curl_thread_callback(Var arglist, Var *ret)
     free(chunk.result);
 }
 
-    static package
+static package
 bf_curl(Var arglist, Byte next, void *vdata, Objid progr)
 {
     if (!is_wizard(progr))
@@ -81,17 +83,69 @@ bf_curl(Var arglist, Byte next, void *vdata, Objid progr)
     return background_thread(curl_thread_callback, &arglist, human_string);
 }
 
+static package
+bf_url_encode(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var r;
+    const char *url = arglist.v.list[1].v.str;
+
+    free_var(arglist);
+
+    char *encoded = curl_easy_escape(curl_handle, url, memo_strlen(url));
+
+    if (encoded == nullptr) {
+        curl_easy_cleanup(curl_handle);
+        return make_error_pack(E_INVARG);
+    }
+
+    r.type = TYPE_STR;
+    r.v.str = str_dup(encoded);
+
+    curl_free(encoded);
+
+    return make_var_pack(r);
+}
+
+static package
+bf_url_decode(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    Var r;
+    const char *url = arglist.v.list[1].v.str;
+
+    free_var(arglist);
+
+    char *decoded = curl_easy_unescape(curl_handle, url, memo_strlen(url), nullptr);
+
+    if (decoded == nullptr) {
+        curl_easy_cleanup(curl_handle);
+        return make_error_pack(E_INVARG);
+    }
+
+    r.type = TYPE_STR;
+    r.v.str = str_dup(decoded);
+
+    curl_free(decoded);
+
+    return make_var_pack(r);
+}
+
 void curl_shutdown(void)
 {
     curl_global_cleanup();
+    
+    if (curl_handle != nullptr)
+        curl_easy_cleanup(curl_handle);
 }
 
-    void
+void
 register_curl(void)
 {
     oklog("REGISTER_CURL: Using libcurl version %s\n", curl_version());
     curl_global_init(CURL_GLOBAL_ALL);
+    curl_handle = curl_easy_init();
     register_function("curl", 1, 2, bf_curl, TYPE_STR, TYPE_ANY);
+    register_function("url_encode", 1, 1, bf_url_encode, TYPE_STR);
+    register_function("url_decode", 1, 1, bf_url_decode, TYPE_STR);
 }
 
 #else /* CURL_FOUND */

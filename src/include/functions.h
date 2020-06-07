@@ -52,6 +52,7 @@ typedef struct {
 } package;
 
 void register_bi_functions(void);
+void unregister_bi_functions(void);
 
 enum abort_reason {
     ABORT_KILL    = -1, 	/* kill_task(task_id()) */
@@ -62,7 +63,7 @@ enum abort_reason {
 package make_abort_pack(enum abort_reason reason);
 package make_error_pack(enum error err);
 package make_raise_pack(enum error err, const char *msg, Var value);
-package make_raise_x_not_found_pack(enum error err, const char *msg);
+package make_x_not_found_pack(enum error err, const char *msg);
 package make_var_pack(Var v);
 package no_var_pack(void);
 package make_call_pack(Byte pc, void *data);
