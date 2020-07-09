@@ -32,8 +32,28 @@
 #include "structures.h"
 #include "unparse.h"
 #include "utils.h"
+#include <unordered_map>
+#include <string>
+
+struct bft_entry {
+    const char *name;
+    const char *protect_str;
+    const char *verb_str;
+    int minargs;
+    int maxargs;
+    var_type *prototype;
+    bf_type func;
+    bf_read_type read;
+    bf_write_type write;
+    int _protected;
+};
+
+static std::vector<bft_entry> bf_table;
 
 typedef std::function<void()> registry;
+
+static std::unordered_map<unsigned int, std::string> functionNumbers;
+static std::unordered_map<std::string, unsigned int> functionNames;
 
 void
 register_bi_functions()
@@ -84,24 +104,17 @@ register_bi_functions()
     {
         callback();
     }
+
+    //Add them to our lookup tables.
+    const auto functionCount = bf_table.size();
+    for (size_t i = 0; i < functionCount; ++i)
+    {
+        functionNumbers[i] = bf_table[i].name;
+        functionNames[bf_table[i].name] = i;
+    }
 }
 
 /*** register ***/
-
-struct bft_entry {
-    const char *name;
-    const char *protect_str;
-    const char *verb_str;
-    int minargs;
-    int maxargs;
-    var_type *prototype;
-    bf_type func;
-    bf_read_type read;
-    bf_write_type write;
-    int _protected;
-};
-
-static std::vector<bft_entry> bf_table;
 
 static void
 register_common(const char *name, int minargs, int maxargs, bf_type func,
@@ -169,20 +182,17 @@ name_func_by_num(unsigned n)
 {   /* used by unparse only */
     if (n >= bf_table.size())
         return func_not_found_msg;
-    else
-        return bf_table[n].name;
+
+return functionNumbers[n].c_str();
 }
 
 unsigned
 number_func_by_name(const char *name)
 {   /* used by parser only */
+if (!functionNames.count(name))
+        return FUNC_NOT_FOUND;
 
-    const auto functionCount = bf_table.size();
-    for (size_t i = 0; i < functionCount; ++i)
-        if (!strcasecmp(name, bf_table[i].name))
-            return i;
-
-    return FUNC_NOT_FOUND;
+    return functionNames[name];
 }
 
 /*** calling built-in functions ***/
