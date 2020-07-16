@@ -25,7 +25,7 @@ extern Var new_list(const int size);
 extern void destroy_list(Var list);
 extern Var list_dup(Var list);
 
-extern Var listappend(Var& list, Var value);
+extern Var listappend(Var list, Var value);
 extern Var listinsert(Var& list, Var value, int pos);
 extern Var listdelete(Var list, const int pos);
 extern Var listset(Var list, Var value, int pos);
