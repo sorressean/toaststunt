@@ -966,5 +966,5 @@ register_numbers(void)
 
     /* Possibly misplaced functions... */
     register_function("distance", 2, 2, bf_distance, TYPE_LIST, TYPE_LIST);
-    register_function("relative_heading", 2, 2, bf_relative_heading, TYPE_LIST, TYPE_LIST);
+//    register_function("relative_heading", 2, 2, bf_relative_heading, TYPE_LIST, TYPE_LIST);
 }

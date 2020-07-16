@@ -1772,7 +1772,7 @@ register_list(void)
     register_function("reverse", 1, 1, bf_reverse, TYPE_ANY);
     register_function("slice", 1, 3, bf_slice, TYPE_LIST, TYPE_ANY, TYPE_ANY);
     register_function("sort", 1, 4, bf_sort, TYPE_LIST, TYPE_LIST, TYPE_INT, TYPE_INT);
-    register_function("all_members", 2, 2, bf_all_members, TYPE_ANY, TYPE_LIST);
+//    register_function("all_members", 2, 2, bf_all_members, TYPE_ANY, TYPE_LIST);
 
     /* string */
     register_function("tostr", 0, -1, bf_tostr);
