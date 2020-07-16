@@ -865,15 +865,10 @@ run(char raise, enum error resumption_error, Var * result)
             if (raise_error(make_raise_pack(the_err, the_msg, the_value), 0)) { \
                 /* No try-except */                                             \
                 free_str(the_msg);                                              \
-                if (the_value.type == TYPE_LIST)                                \
-                    free_var(the_value);                                        \
                 return OUTCOME_ABORTED;                                         \
             } else {                                                            \
                 LOAD_STATE_VARIABLES();                                         \
                 free_str(the_msg);                                              \
-                if (the_value.type == TYPE_LIST) {                              \
-                    free_var(the_value);                                        \
-                }                                                               \
                 goto next_opcode;                                               \
             } \
         } \
@@ -913,16 +908,33 @@ run(char raise, enum error resumption_error, Var * result)
             PUSH_ERROR(the_err);                                        \
     } while (0)
 
-#define PUSH_X_NOT_FOUND(the_err, the_missing)                                      \
-    do {                                                                            \
-        Var missing = str_dup_to_var(the_missing);                                  \
-        static Stream *error_stream = nullptr;                                      \
-        if (error_stream == nullptr) {                                              \
-            error_stream = new_stream(20);                                          \
-        }                                                                           \
-        stream_printf(error_stream, "%s: %s", unparse_error(the_err), the_missing); \
-        char *error_message = str_dup(reset_stream(error_stream));                  \
-        PUSH_ERROR_WITH_VALUE(the_err, error_message, missing);                     \
+    /* error the_err: an error type (e.g. E_PROPNF)
+       Var the_missing: TYPE_STR representing what is missing (e.g. the property name) [gets freed]
+       Var the_object: TYPE_OBJ representing the object that is missing the thing [gets freed]
+                       the_object can be 'nothing' to indicate that object is not applicable */
+#define PUSH_X_NOT_FOUND(the_err, the_missing, the_object)                                       \
+    do {                                                                                         \
+        static Stream *error_stream = nullptr;                                                   \
+        if (error_stream == nullptr) {                                                           \
+            error_stream = new_stream(20);                                                       \
+        }                                                                                        \
+        if (the_object.v.obj == NOTHING) {                                                       \
+            stream_printf(error_stream, "%s: %s", unparse_error(the_err), the_missing.v.str);    \
+        } else {                                                                                 \
+            char separator;                                                                      \
+            if (the_err == E_PROPNF)                                                             \
+                separator = '.';                                                                 \
+            else if (the_err == E_VERBNF)                                                        \
+                separator = ':';                                                                 \
+            stream_printf(error_stream, "%s: #%" PRIdN "%c%s%s", unparse_error(the_err),         \
+                          the_object.v.obj, separator, the_missing.v.str,                        \
+                          the_err == E_VERBNF ? "()" : "");                                      \
+        }                                                                                        \
+        char *error_message = str_dup(reset_stream(error_stream));                               \
+        Var value = new_list(2);                                                                 \
+        value.v.list[1] = the_object;                                                            \
+        value.v.list[2] = the_missing;                                                           \
+        PUSH_ERROR_WITH_VALUE(the_err, error_message, value);                                    \
     } while (0)
 
 #define RAISE_TYPE_MISMATCH(...)                               \
@@ -1450,16 +1462,15 @@ finish_comparison:
                 var_type lhs_type = lhs.type;
                 var_type rhs_type = rhs.type;
 
-                if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT)
-                        && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT))
+                if ((lhs_type == TYPE_INT || lhs_type == TYPE_FLOAT)
+                        && (rhs_type == TYPE_INT || rhs_type == TYPE_FLOAT))
                     ans = do_add(lhs, rhs);
-                else if (lhs.type == TYPE_STR && rhs.type == TYPE_STR) {
+                else if (lhs_type == TYPE_STR && rhs_type == TYPE_STR) {
                     char *str;
                     int llen = memo_strlen(lhs.v.str);
                     int flen = llen + memo_strlen(rhs.v.str);
 
-                    if (server_int_option_cached(SVO_MAX_STRING_CONCAT)
-                            < flen) {
+                    if (server_int_option_cached(SVO_MAX_STRING_CONCAT) < flen) {
                         ans.type = TYPE_ERR;
                         ans.v.err = E_QUOTA;
                     } else {
@@ -1468,6 +1479,12 @@ finish_comparison:
                         strcpy(str + llen, rhs.v.str);
                         ans.type = TYPE_STR;
                         ans.v.str = str;
+                    }
+                } else if (lhs_type == TYPE_LIST) {
+                    if (rhs_type == TYPE_LIST) {
+                        ans = listconcat(var_ref(lhs), var_ref(rhs));
+                    } else {
+                        ans = listappend(var_ref(lhs), var_ref(rhs));
                     }
                 } else {
                     ans.type = TYPE_ERR;
@@ -1778,7 +1795,8 @@ finish_comparison:
                 int var_pos = READ_BYTES(bv, bc.numbytes_var_name);
                 value = RUN_ACTIV.rt_env[var_pos];
                 if (value.type == TYPE_NONE) {
-                    PUSH_X_NOT_FOUND(E_VARNF, *(&RUN_ACTIV.prog->var_names[var_pos]));
+                    Var not_found = str_ref_to_var(*(&RUN_ACTIV.prog->var_names[var_pos]));
+                    PUSH_X_NOT_FOUND(E_VARNF, not_found, var_ref(nothing));
                 }
                 else
                     PUSH_REF(value);
@@ -1817,14 +1835,11 @@ finish_comparison:
                     h = db_find_property(obj, propname.v.str, &prop);
                     built_in = db_is_property_built_in(h);
 
-                    free_var(obj);
-
                     if (!h.ptr) {
-                        const char* prop_name = propname.v.str;
-                        free_var(propname);
-                        PUSH_X_NOT_FOUND(E_PROPNF, prop_name);
+                        PUSH_X_NOT_FOUND(E_PROPNF, propname, obj);
                     } else {
                         free_var(propname);
+                        free_var(obj);
 
                         if (built_in
                                 ? bi_prop_protected(built_in, RUN_ACTIV.progr)
@@ -1864,11 +1879,12 @@ finish_comparison:
 
                     h = db_find_property(obj, propname.v.str, &prop);
                     built_in = db_is_property_built_in(h);
-                    if (!h.ptr)
-                        PUSH_X_NOT_FOUND(E_PROPNF, propname.v.str);
-                    else if (built_in
-                             ? bi_prop_protected(built_in, RUN_ACTIV.progr)
-                             : !db_property_allows(h, RUN_ACTIV.progr, PF_READ))
+                    if (!h.ptr) {
+                        Var not_found = var_ref(propname);
+                        PUSH_X_NOT_FOUND(E_PROPNF, not_found, var_ref(obj));
+                    } else if (built_in
+                               ? bi_prop_protected(built_in, RUN_ACTIV.progr)
+                               : !db_property_allows(h, RUN_ACTIV.progr, PF_READ))
                         PUSH_ERROR(E_PERM);
                     else if (built_in)
                         PUSH(prop); /* it's already freshly allocated */
@@ -1895,9 +1911,9 @@ finish_comparison:
                         PUSH(rhs);
                     } else {
                         free_var(rhs);
-                        if (err == E_PROPNF)
-                            PUSH_X_NOT_FOUND(E_PROPNF, propname.v.str);
-                        else {
+                        if (err == E_PROPNF) {
+                            PUSH_X_NOT_FOUND(E_PROPNF, propname, var_ref(obj));
+                        } else {
                             free_var(propname);
                             PUSH_ERROR(err);
                         }
@@ -1985,14 +2001,11 @@ finish_comparison:
                         }
                     }
 
-                    free_var(obj);
-
                     if (err == E_PROPNF) {
-                        const char *prop_name = propname.v.str;
-                        free_var(propname);
-                        PUSH_X_NOT_FOUND(E_PROPNF, prop_name);
+                        PUSH_X_NOT_FOUND(E_PROPNF, propname, obj);
                     } else {
                         free_var(propname);
+                        free_var(obj);
                         if (err == E_NONE) {
                             db_set_property_value(h, var_ref(rhs));
                             PUSH(rhs);
@@ -2104,21 +2117,20 @@ else if (obj.type == TYPE_##t1) {           \
                     else
                         err = E_TYPE;
                 }
-                free_var(obj);
 
                 if (err != E_NONE) {
                     /* there is an error, RUN_ACTIV unchanged, args must be freed */
                     free_var(args);
                     if (err == E_VERBNF) {
-                        const char *verb_name = verb.v.str;
-                        free_var(verb);
-                        PUSH_X_NOT_FOUND(err, verb_name);
+                        PUSH_X_NOT_FOUND(err, verb, obj);
                     } else {
                         free_var(verb);
+                        free_var(obj);
                         PUSH_ERROR(err);
                     }
                 } else {
                     free_var(verb);
+                    free_var(obj);
                 }
             }
             break;
@@ -2849,7 +2861,8 @@ else if (obj.type == TYPE_##t1) {           \
                 value = RUN_ACTIV.rt_env[PUSH_n_INDEX(op)];
                 if (value.type == TYPE_NONE) {
                     free_var(value);
-                    PUSH_X_NOT_FOUND(E_VARNF, *(&RUN_ACTIV.prog->var_names[PUSH_n_INDEX(op)]));
+                    Var not_found = str_ref_to_var(*(&RUN_ACTIV.prog->var_names[PUSH_n_INDEX(op)]));
+                    PUSH_X_NOT_FOUND(E_VARNF, not_found, var_ref(nothing));
                 } else
                     PUSH_REF(value);
             }
@@ -2892,7 +2905,8 @@ else if (obj.type == TYPE_##t1) {           \
                 Var *vp;
                 vp = &RUN_ACTIV.rt_env[PUSH_CLEAR_n_INDEX(op)];
                 if (vp->type == TYPE_NONE) {
-                    PUSH_X_NOT_FOUND(E_VARNF, *(&RUN_ACTIV.prog->var_names[PUSH_CLEAR_n_INDEX(op)]));
+                    Var not_found = str_ref_to_var(*(&RUN_ACTIV.prog->var_names[PUSH_CLEAR_n_INDEX(op)]));
+                    PUSH_X_NOT_FOUND(E_VARNF, not_found, var_ref(nothing));
                 } else {
                     PUSH(*vp);
                     vp->type = TYPE_NONE;
@@ -3584,7 +3598,7 @@ bf_pass(Var arglist, Byte next, void *vdata, Objid progr)
     free_var(arglist);
 
     if (e == E_VERBNF)
-        return make_x_not_found_pack(e, RUN_ACTIV.verb);
+        return make_x_not_found_pack(e, RUN_ACTIV.verb, RUN_ACTIV.recv);
     else
         return make_error_pack(e);
 }
@@ -4059,5 +4073,5 @@ type_mismatch_value(int n_args, ...)
     value_var.v.list[1] = expected_types;
     value_var.v.list[2] = Var::new_int(mismatch & TYPE_DB_MASK);
 
-    return var_ref(value_var);
+    return value_var;
 }

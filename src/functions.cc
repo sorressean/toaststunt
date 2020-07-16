@@ -361,15 +361,24 @@ make_raise_pack(enum error err, const char *msg, Var value)
     return p;
 }
 
-package make_x_not_found_pack(enum error err, const char *msg)
+package
+make_x_not_found_pack(enum error err, const char *msg, Objid the_object)
 {
     Var missing;
     missing.type = TYPE_STR;
-    missing.v.str = str_dup(msg);
+    missing.v.str = str_ref(msg);
     char *error_msg = nullptr;
-    asprintf(&error_msg, "%s: %s", unparse_error(err), msg);
+    asprintf(&error_msg, "%s: #%" PRIdN ":%s()", unparse_error(err), the_object, msg);
 
-    return make_raise_pack(err, error_msg, missing);
+    Var value = new_list(2);
+    value.v.list[1] = Var::new_obj(the_object);
+    value.v.list[2] = missing;
+
+    package p = make_raise_pack(err, error_msg, value);
+
+    free(error_msg);
+
+    return p;
 }
 
 package

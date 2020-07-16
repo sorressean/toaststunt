@@ -9,12 +9,18 @@
 - Add math functions `cbrt()`, `atan2`, `asinh`, `atanh`, and `acosh`.
 - Add support for the SQLite `REGEXP` operator.
 - Add an `sqlite_interrupt(<handle>)` function to abort long-running SQLite queries.
-- Improve handling of 'x not found' errors. Now when you get a property, verb, or variable not found error, two things happen: First, the traceback message will tell you what exactly was not found. Second, if you catch the error in a try, the name of the missing thing will be available as the third argument in the error list.
 - Allow for retrieval of runtime environment variables from a running task, unhandled exceptions or timeouts, and lagging tasks via `handle_uncaught_error`, `handle_task_timeout`, and `handle_lagging_task`, respectively. TO control automatic inclusion of runtime environment variables, set the `INCLUDE_RT_VARS` server option. Variables will be added to the end of the stack frame as a map.
 - Providing a true argument to `queued_tasks()` will include all variables for any running tasks that you are authorized to examine. Additionally, a third argument has been added to the task_stack() builtin, which toggles whether variables are included with each frame for the provided task.
 - Add a `BOOL` type, to unambiguously indicate whether a value is TRUE or FALSE. The `true` and `false` variables are set at task runtime and can be overridden within verbs if needed.
 - The `parse_json` function now uses the BOOL type instead of converting to strings. Similarly, passing a boolean to `generate_json` is understood to be a BOOL.
-- Improve type mismatch errors. Tracebacks will now tell you what type was expected vs the type that you supplied. The value returned in a caught E_TYPE is now a list of the format `{{expected types}, supplied type}`. Builtin functions will now tell you which argument was incorrect and the expected / supplied type for that argument.
+- Add debug information about task queues to `queue_info(<object>)` when called by a wizard.
+- Fix a bug in `sort()` that could have caused a server crash.
+- Improve reporting of 'x not found' errors. Now when you get a property, verb, or variable not found error, two things happen: First, the traceback message will tell you what exactly was not found. Second, if you catch the error in a try-except, the object number and name of the missing thing will be available as the third argument in the error list (the value).
+- Improve type mismatch error reporting. Traceback messages will now tell you what type was expected vs the type that you supplied. The value returned in a caught E_TYPE is now a list of the format `{{expected types}, supplied type}`. Builtin functions will now tell you which argument was incorrect and the expected / supplied type for that argument.`
+- The addition operator now accepts lists. When adding two lists together, the two will be concatenated. (e.g. {1, 2, 3} + {4, 5, 6} => {1, 2, 3, 4, 5, 6}) When adding another type to a list, it will append that value to the end of the list. (e.g. {1, 2} + #123 => {1, 2, #123})
+- Fix a bug where using floats as map keys could result in lost values. (e.g. [12.1 -> 1, 12.2 -> 2] would lose 12.1)
+
+**WARNING**: This version increments the database version (DBV_Bool), making databases incompatible with previous releases.
 
 ## 2.6.1 (Mar 10, 2020)
 - The `mapvalues` function now accepts any number of keys, the values of which will be returned by the function. If a key doesn't exist, E_RANGE is returned.
