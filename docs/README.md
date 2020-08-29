@@ -141,6 +141,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - '-m' command line option to clear all last_move properties in your database (and not set them again for the lifetime of the process).
     - Build system is now CMake
     - Boolean (BOOL) type
+    - Allow handling of SIGUSR signals in the database with `#0:handle_signal()`
 
 ## Build Instructions
 ### **Debian/Ubuntu**
@@ -228,4 +229,6 @@ Due to the way proxy detection works, if you're connecting to your MOO from loca
 
 ## Support and Development
 
-Realtime support and collaborative discussion for ToastStunt primarily takes place on the 'toaststunt' channel on ChatMUD. Barring this, the [Miriani Message Boards](https://board.toastsoft.net/) are another good resource for assistance.
+For support or collaborative discussions, you can join:
+1. [Discord](https://discord.gg/XyXP43e)
+2. The 'toaststunt' channel in ChatMUD.

@@ -426,7 +426,7 @@ compare(const Var &lhs, const Var &rhs, const int case_matters)
                 if (lhs.v.fnum == rhs.v.fnum)
                     return 0;
                 else
-                    return (lhs.v.fnum) - (rhs.v.fnum);
+                    return (lhs.v.fnum - rhs.v.fnum) < 0.0 ? -1 : 1;
             case TYPE_WAIF:
                 return lhs.v.waif == rhs.v.waif ? 0 : 1;
             case TYPE_ANON:

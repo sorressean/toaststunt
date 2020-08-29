@@ -926,8 +926,9 @@ run(char raise, enum error resumption_error, Var * result)
                 separator = '.';                                                                 \
             else if (the_err == E_VERBNF)                                                        \
                 separator = ':';                                                                 \
-            stream_printf(error_stream, "%s: #%" PRIdN "%c%s%s", unparse_error(the_err),         \
-                          the_object.v.obj, separator, the_missing.v.str,                        \
+            stream_printf(error_stream, "%s: ", unparse_error(the_err));                         \
+            unparse_value(error_stream, the_object);                                             \
+            stream_printf(error_stream, "%c%s%s", separator, the_missing.v.str,                  \
                           the_err == E_VERBNF ? "()" : "");                                      \
         }                                                                                        \
         char *error_message = str_dup(reset_stream(error_stream));                               \
@@ -1462,16 +1463,15 @@ finish_comparison:
                 var_type lhs_type = lhs.type;
                 var_type rhs_type = rhs.type;
 
-                if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT)
-                        && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT))
+                if ((lhs_type == TYPE_INT || lhs_type == TYPE_FLOAT)
+                        && (rhs_type == TYPE_INT || rhs_type == TYPE_FLOAT))
                     ans = do_add(lhs, rhs);
-                else if (lhs.type == TYPE_STR && rhs.type == TYPE_STR) {
+                else if (lhs_type == TYPE_STR && rhs_type == TYPE_STR) {
                     char *str;
                     int llen = memo_strlen(lhs.v.str);
                     int flen = llen + memo_strlen(rhs.v.str);
 
-                    if (server_int_option_cached(SVO_MAX_STRING_CONCAT)
-                            < flen) {
+                    if (server_int_option_cached(SVO_MAX_STRING_CONCAT) < flen) {
                         ans.type = TYPE_ERR;
                         ans.v.err = E_QUOTA;
                     } else {
@@ -1480,6 +1480,12 @@ finish_comparison:
                         strcpy(str + llen, rhs.v.str);
                         ans.type = TYPE_STR;
                         ans.v.str = str;
+                    }
+                } else if (lhs_type == TYPE_LIST) {
+                    if (rhs_type == TYPE_LIST) {
+                        ans = listconcat(var_ref(lhs), var_ref(rhs));
+                    } else {
+                        ans = listappend(var_ref(lhs), var_ref(rhs));
                     }
                 } else {
                     ans.type = TYPE_ERR;
@@ -1808,12 +1814,16 @@ finish_comparison:
                     enum error err;
 
                     err = waif_get_prop(obj.v.waif, propname.v.str, &prop, RUN_ACTIV.progr);
-                    free_var(propname);
                     free_var(obj);
-                    if (err == E_NONE)
-                        PUSH(prop);
-                    else
-                        PUSH_ERROR(err);
+                    if (err == E_PROPNF)
+                        PUSH_X_NOT_FOUND(E_PROPNF, propname, var_ref(obj));
+                    else {
+                        free_var(propname);
+                        if (err == E_NONE)
+                            PUSH(prop);
+                        else
+                            PUSH_ERROR(err);
+                    }
                 } else if (!obj.is_object() || propname.type != TYPE_STR) {
                     var_type incorrect_type = propname.type != TYPE_STR ? propname.type : obj.type;
                     free_var(propname);
@@ -1861,6 +1871,8 @@ finish_comparison:
                     err = waif_get_prop(obj.v.waif, propname.v.str, &prop, RUN_ACTIV.progr);
                     if (err == E_NONE)
                         PUSH(prop);
+                    else if (err == E_PROPNF)
+                        PUSH_X_NOT_FOUND(E_PROPNF, propname, var_ref(obj));
                     else
                         PUSH_ERROR(err);
                 } else if (!obj.is_object() || propname.type != TYPE_STR) {
