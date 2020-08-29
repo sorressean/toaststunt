@@ -43,11 +43,11 @@ endif()
 option(ONLY_32_BITS "Use 32-bit integers instead of 64-bit." OFF)
 
 # Compiler Flags
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 99)
 
 # These flags are shared by the RELEASE and WARN build types.
-set(SHARED_COMPILE_FLAGS "-march=native -Ofast -flto")
+set(SHARED_COMPILE_FLAGS "-march=native -O2")
 
 # The default for non-developers: Optimization enabled and all warnings silenced.
 set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w")

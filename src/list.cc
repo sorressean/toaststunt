@@ -237,7 +237,7 @@ listinsert(Var& list, Var value, int pos)
 }
 
 Var
-listappend(Var& list, Var value)
+listappend(Var list, Var value)
 {
     return doinsert(list, value, list.v.list[0].v.num + 1);
 }
