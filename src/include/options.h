@@ -380,6 +380,10 @@
 #define EXEC_SUBDIR "executables/"
 #define EXEC_MAX_PROCESSES 256
 
+/**
+* Should we disable clearing of last move properties?
+*/
+#define NO_CLEAR_LAST_MOVE
 /******************************************************************************
  * Configurable options for the FileIO subsystem.  FILE_SUBDIR is the
  * directory inside the working directory in which all files must

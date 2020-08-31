@@ -105,7 +105,9 @@ static bool reopen_logfile_requested = false;
 
 static void handle_user_defined_signal(int sig);
 
+#ifndef NO_CLEAR_LAST_MOVE
 bool clear_last_move = false;
+#endif
 
 typedef struct shandle {
     struct shandle *next, **prev;
@@ -1832,9 +1834,11 @@ main(int argc, char **argv)
                 } else
                     argc = 0;
                 break;
+#ifndef NO_CLEAR_LAST_MOVE
             case 'm':       /* clear last move */
                 clear_last_move = true;
                 break;
+#endif
             default:
                 argc = 0;       /* Provoke usage message below */
         }
