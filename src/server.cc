@@ -108,6 +108,7 @@ static void handle_user_defined_signal(int sig);
 #ifndef NO_CLEAR_LAST_MOVE
 bool clear_last_move = false;
 #endif
+bool kill_tasks = false;
 
 typedef struct shandle {
     struct shandle *next, **prev;
@@ -1839,6 +1840,9 @@ main(int argc, char **argv)
                 clear_last_move = true;
                 break;
 #endif
+            case 'k': /*kill queued tasks*/
+                kill_tasks = true;
+                break;
             default:
                 argc = 0;       /* Provoke usage message below */
         }
@@ -1858,13 +1862,6 @@ main(int argc, char **argv)
     } else {
         set_log_file(stderr);
     }
-
-    applog(LOG_INFO1, " _   __           _____                ______\n");
-    applog(LOG_INFO1, "( `^` ))  ___________  /_____  _________ __  /_\n");
-    applog(LOG_INFO1, "|     ||   __  ___/_  __/_  / / /__  __ \\_  __/\n");
-    applog(LOG_INFO1, "|     ||   _(__  ) / /_  / /_/ / _  / / // /_\n");
-    applog(LOG_INFO1, "'-----'`   /____/  \\__/  \\__,_/  /_/ /_/ \\__/   v%s\n", server_version);
-    applog(LOG_INFO1, "\n");
 
     if ((emergency && (script_file || script_line))
             || !db_initialize(&argc, &argv)
