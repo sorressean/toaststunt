@@ -1866,7 +1866,7 @@ main(int argc, char **argv)
     if ((emergency && (script_file || script_line))
             || !db_initialize(&argc, &argv)
             || !network_initialize(argc, argv, &desc)) {
-        fprintf(stderr, "Usage: %s [-e] [-f script-file] [-c script-line] [-l log-file] [-m] [-w waif-type] %s %s\n",
+        fprintf(stderr, "Usage: %s [-e] [-f script-file] [-c script-line] [-l log-file] [-m] [-k] [-w waif-type] %s %s\n",
                 this_program, db_usage_string(), network_usage_string());
         fprintf(stderr, "Options:\n");
         fprintf(stderr, "\t-v\t\tcurrent version\n");
@@ -1875,6 +1875,7 @@ main(int argc, char **argv)
         fprintf(stderr, "\t-c\t\tline to pass to `#0:do_start_script()'\n");
         fprintf(stderr, "\t-l\t\toptional log file\n");
         fprintf(stderr, "\t-m\t\tclear the last_move builtin property on all objects\n");
+        fprintf(stderr, "\t-k\tignore loading of queued tasks\n");
         fprintf(stderr, "\t-w\t\tconvert waifs from the specified type to the proper type (check with typeof(waif) in your MOO)\n\n");
         fprintf(stderr, "The emergency mode switch (-e) may not be used with either the file (-f) or line (-c) options.\n\n");
         fprintf(stderr, "Both the file and line options may be specified. Their order on the command line determines the order of their invocation.\n\n");
