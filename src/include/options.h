@@ -122,49 +122,25 @@
  * updated.
  */
 
-#define DEFAULT_MAX_STACK_DEPTH	50
+#define DEFAULT_MAX_STACK_DEPTH	 50
 
-#define DEFAULT_FG_TICKS	60000
-#define DEFAULT_BG_TICKS	30000
+#define DEFAULT_FG_TICKS         60000
+#define DEFAULT_BG_TICKS         30000
 
-#define DEFAULT_FG_SECONDS	5
-#define DEFAULT_BG_SECONDS	3
+#define DEFAULT_FG_SECONDS       5
+#define DEFAULT_BG_SECONDS       3
 
-#define DEFAULT_LAG_THRESHOLD 5.0
+#define DEFAULT_LAG_THRESHOLD    5.0
 
 /******************************************************************************
- * NETWORK_PROTOCOL must be defined as one of the following:
- *
- * NP_SINGLE	The server will accept only one user at a time, communicating
- *		with them using the standard input and output streams of the
- *		server itself.
- * NP_TCP	The server will use TCP/IP protocols, such as are used by the
- *		Internet `telnet' command.
- *
- * If NP_TCP is selected, then DEFAULT_PORT is the TCP port number on which the
- * server listens when no port argument is given on the command line.
- *
+ * DEFAULT_PORT is the TCP port number on which the server listenes when no
+ * port argument is given on the command line.
  */
-
-#define NETWORK_PROTOCOL 	NP_TCP
 
 #define DEFAULT_PORT 		7777
 
 /******************************************************************************
- * If NETWORK_PROTOCOL is not defined as NP_SINGLE, then NETWORK_STYLE must be
- * defined as one of the following:
- *
- * NS_BSD	The server will use implementation techniques appropriate to a
- *		BSD-style UNIX system.
- */
-
-#define NETWORK_STYLE NS_BSD
-
-/******************************************************************************
- * If NETWORK_PROTOCOL is not defined as NP_SINGLE, then MPLEX_STYLE must be
- * defined as one of the following:
- *
- * MP_SELECT	The server will assume that the select() system call exists.
+ * MP_SELECT	 The server will assume that the select() system call exists.
  * MP_POLL	    The server will assume that the poll() system call exists.
  *
  * Usually, it works best to leave MPLEX_STYLE undefined and let the code at
@@ -188,8 +164,6 @@
  *
  * *** THINK VERY HARD BEFORE ENABLING THIS FUNCTION ***
  * In some contexts, this could represent a serious breach of security.
- *
- * Note: OUTBOUND_NETWORK may not be defined if NETWORK_PROTOCOL is NP_SINGLE.
  */
 
 /* disable by default, +O enables: */
@@ -199,8 +173,31 @@
 #define OUTBOUND_NETWORK 1
 
 /******************************************************************************
+ * The server supports secure TLS connections using the OpenSSL library.
+ * If USE_TLS is defined, you will be able to listen() for TLS connections
+ * and connect to TLS servers using open_network_connection().
+ * If VERIFY_TLS_PEERS is defined, the peer certificate must be signed with a CA
+ * or the connection will fail.
+ * 
+ * The +T and -T command line options can explicitly enable and disable this
+ * function. If neither option is supplied, the definition given to
+ * USE_TLS here determines the default behavior.
+ * 
+ * If LOG_TLS_CONNECTIONS is defined, each connection will be accompanied by
+ * a TLS negotiation message which includes the ciphersuite. The ciphersuite is
+ * also available from the connection_info() built-in function, which will be
+ * unaffected by this option.
+ */
+
+#define USE_TLS
+#define VERIFY_TLS_PEERS
+#define DEFAULT_TLS_CERT    "/etc/letsencrypt/live/fullchain.pem"
+#define DEFAULT_TLS_KEY     "/etc/letsencrypt/live/privkey.pem"
+#define LOG_TLS_CONNECTIONS
+
+/******************************************************************************
  * The following constants define certain aspects of the server's network
- * behavior if NETWORK_PROTOCOL is not defined as NP_SINGLE.
+ * behavior.
  *
  * MAX_QUEUED_OUTPUT is the maximum number of output characters the server is
  *		     willing to buffer for any given network connection before
@@ -223,10 +220,10 @@
  *			   accepted by a given listener L.
  */
 
-#define MAX_QUEUED_OUTPUT	      65536
-#define MAX_QUEUED_INPUT	      MAX_QUEUED_OUTPUT
-#define MAX_LINE_BYTES          5242880
-#define DEFAULT_CONNECT_TIMEOUT	300
+#define MAX_QUEUED_OUTPUT         65536
+#define MAX_QUEUED_INPUT          MAX_QUEUED_OUTPUT
+#define MAX_LINE_BYTES            5242880
+#define DEFAULT_CONNECT_TIMEOUT   300
 
 /******************************************************************************
  * On connections that have not been set to binary mode, the server normally
@@ -245,8 +242,8 @@
  * Do not set either value to a number less than 1.
  */
 
-#define PATTERN_CACHE_SIZE	    20
-#define PCRE_PATTERN_CACHE_SIZE	20
+#define PATTERN_CACHE_SIZE      20
+#define PCRE_PATTERN_CACHE_SIZE 20
 
 /******************************************************************************
  * Prior to 1.8.4 property lookups were required on every reference to a
@@ -552,6 +549,14 @@
 #define PLAYER_HUH 0
 #endif
 
+#ifndef NETWORK_PROTOCOL
+#define NETWORK_PROTOCOL NP_TCP
+#endif
+
+#ifndef NETWORK_STYLE
+#define NETWORK_STYLE NS_BSD
+#endif
+
 #ifndef OUT_OF_BAND_PREFIX
 #define OUT_OF_BAND_PREFIX ""
 #endif
@@ -573,8 +578,7 @@
 #  error Illegal match() pattern cache size!
 #endif
 
-#define NP_SINGLE	1
-#define NP_TCP		2
+#define NP_TCP		1
 
 #define NS_BSD		1
 
@@ -583,20 +587,39 @@
 
 #include "config.h"
 
-#if NETWORK_PROTOCOL != NP_SINGLE  &&  !defined(MPLEX_STYLE)
+#ifndef USE_TLS
+ #define USE_TLS_BOOL
+ #define TLS_CERT_PATH
+ #define TLS_CERT_PATH_DEF
+ #define USE_TLS_BOOL_DEF
+ #define SSL_CONTEXT_1_ARG
+ #define SSL_CONTEXT_1_DEF
+ #define SSL_CONTEXT_2_ARG
+ #define SSL_CONTEXT_2_DEF
+#else
+/* With TLS being optional and needing to pass around so many arguments,
+ * I decided this would look nicer than splitting everything up
+ * with ifdefs everywhere... */
+ #define USE_TLS_BOOL , use_tls
+ #define USE_TLS_BOOL_DEF , bool use_tls
+ #define TLS_CERT_PATH , certificate_path, key_path
+ #define TLS_CERT_PATH_DEF , const char *certificate_path, const char *key_path
+ #define SSL_CONTEXT_2_ARG , &tls
+ #define SSL_CONTEXT_2_DEF , SSL **tls
+ #define SSL_CONTEXT_1_ARG , tls
+ #define SSL_CONTEXT_1_DEF , SSL *tls
+#endif
+
+#if !defined(MPLEX_STYLE)
 #  if NETWORK_STYLE == NS_BSD
 #    if HAVE_POLL
 #       define MPLEX_STYLE MP_POLL
 #    elif HAVE_SELECT
 #      define MPLEX_STYLE MP_SELECT
 #    else
-#      #error Couldn not find select() or poll()!
+#      #error Could not find select() or poll()!
 #    endif
 #   endif
-#endif
-
-#if (NETWORK_PROTOCOL == NP_SINGLE) && defined(OUTBOUND_NETWORK)
-#  error You cannot define "OUTBOUND_NETWORK" with that "NETWORK_PROTOCOL"
 #endif
 
 /* make sure OUTBOUND_NETWORK has a value;
@@ -607,7 +630,7 @@
 #endif
 
 
-#if NETWORK_PROTOCOL != NP_SINGLE && NETWORK_PROTOCOL != NP_TCP
+#if NETWORK_PROTOCOL != NP_TCP
 #  error Illegal value for "NETWORK_PROTOCOL"
 #endif
 

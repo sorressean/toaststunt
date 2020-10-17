@@ -16,19 +16,28 @@
  *****************************************************************************/
 
 /*
- * This describes the complete set of procedures that a network implementation
- * must provide.  See 'server.h' for the complete set of procedures such an
+ * See 'server.h' for the complete set of procedures the network
  * implementation is expected to use from the rest of the server.
  */
 
 #ifndef Network_H
 #define Network_H 1
 
-#include "config.h"
-#include "options.h"
 #include "structures.h"
 #include "streams.h"
-#include <netdb.h>
+#include <netdb.h>      // sa_family_t
+
+#ifdef USE_TLS
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
+#define TLS_FAIL            -9999
+#define TLS_CONNECT_FAIL    -9998
+
+extern bool initial_connection_point_tls;
+
+extern SSL_CTX *tls_ctx;
+#endif
 
 typedef struct {		/* Network's handle on a connection */
     void *ptr;
@@ -40,9 +49,107 @@ typedef struct {		/* Network's handle on a listening point */
 
 #include "server.h"		/* Include this *after* defining the types */
 
-extern const char *network_protocol_name(void);
-				/* Returns a string naming the networking
-				 * protocol in use.
+struct proto {
+    unsigned pocket_size;	/* Maximum number of file descriptors it might
+				 * take to accept a new connection in this
+				 * protocol.  The generic multi-user network
+				 * code will keep this many descriptors `in its
+				 * pocket', ready to be freed up in order to
+				 * tell potential users that there's no more
+				 * room in the server. */
+    int believe_eof;		/* If true, then read() will return 0 on a
+				 * connection using this protocol iff the
+				 * connection really is closed.  If false, then
+				 * read() -> 0 will be interpreted as the
+				 * connection still being open, but no data
+				 * being available. */
+    const char *eol_out_string;	/* The characters to add to the end of each
+				 * line of output on connections. */
+};
+
+extern enum error make_listener(Var desc, int *fd,
+				      const char **name, const char **ip_address,
+					  uint16_t *port, const bool use_ipv6);
+				/* DESC is the second argument in a call to the
+				 * built-in MOO function `listen()'; it should
+				 * be used as a specification of a new local
+				 * point on which to listen for connections.
+				 * If DESC is OK for this protocol and a
+				 * listening point is successfully made, then
+				 * *FD should be the file descriptor of the new
+				 * listening point, *CANON a canonicalized
+				 * version of DESC (reflecting any defaulting
+				 * or aliasing), *NAME a human-readable name
+				 * for the listening point, and E_NONE
+				 * returned.  Otherwise, an appropriate error
+				 * should be returned.
+				 *
+				 * NOTE: It is more than okay for the server
+				 * still to be refusing connections.  The
+				 * server's call to network_listen() marks the
+				 * time by which the server must start
+				 * accepting connections.
+				 */
+
+enum accept_error {
+    PA_OKAY, PA_FULL, PA_OTHER
+};
+
+extern enum accept_error
+ network_accept_connection(int listener_fd,
+			 int *read_fd, int *write_fd,
+			 const char **name, const char **ip_addr,
+			 uint16_t *port, sa_family_t *protocol USE_TLS_BOOL_DEF SSL_CONTEXT_2_DEF TLS_CERT_PATH_DEF);
+				/* Accept a new connection on LISTENER_FD,
+				 * returning PA_OKAY if successful, PA_FULL if
+				 * unsuccessful only because there aren't
+				 * enough file descriptors available, and
+				 * PA_OTHER for other failures (in which case a
+				 * message should have been output to the
+				 * server log).  LISTENER_FD was returned by a
+				 * call to make_listener().  On
+				 * successful return, *READ_FD and *WRITE_FD
+				 * should be file descriptors on which input
+				 * and output for the new connection can be
+				 * done, *NAME should be a human-readable
+				 * string identifying this connection, and
+                 * *IP_ADDR should be an in_addr struct of
+                 * the original IP address.
+				 */
+
+#ifdef OUTBOUND_NETWORK
+
+extern enum error open_connection(Var arglist,
+					int *read_fd, int *write_fd,
+					const char **name, const char **ip_addr,
+					uint16_t *port, sa_family_t *protocol, bool use_ipv6 USE_TLS_BOOL_DEF SSL_CONTEXT_2_DEF);
+				/* The given MOO arguments should be used as a
+				 * specification of a remote network connection
+				 * to be opened.  If the arguments are OK for
+				 * this protocol and the connection is success-
+				 * fully made, then *READ_FD and *WRITE_FD
+				 * should be set as network_accept_connection()
+				 * does, *LOCAL_NAME a human-readable string
+				 * naming the local endpoint of the connection,
+				 * *REMOTE_NAME a string naming the remote
+				 * endpoint, and E_NONE returned.  Otherwise,
+				 * an appropriate error should be returned.
+				 */
+
+#endif				/* OUTBOUND_NETWORK */
+
+extern void network_close_connection(int read_fd, int write_fd);
+				/* Close the given file descriptors, which were
+				 * returned by network_accept_connection(),
+				 * performing whatever extra clean-ups are
+				 * required by the protocol.
+				 */
+
+extern void close_listener(int fd);
+				/* Close FD, which was returned by a call to
+				 * network_make_listener(), performing whatever
+				 * extra clean-ups are required by the
+				 * protocol.
 				 */
 
 extern const char *network_usage_string(void);
@@ -53,19 +160,22 @@ extern const char *network_usage_string(void);
 
 extern int network_initialize(int argc, char **argv,
 			      Var * desc);
-				/* ARGC and ARGV refer to just the network-
-				 * specific arguments, if any, which always
-				 * come after any network-independent args.
-				 * Returns true iff those arguments were valid.
-				 * On success, *DESC should be a MOO value to
-				 * pass to network_make_listener() in order to
-				 * create the server's initial listening point.
+				/* ARGC and ARGV refer to just the protocol-
+				 * specific command-line arguments, if any,
+				 * which always come after any protocol-
+				 * independent args.  Returns true iff those
+				 * arguments were valid.  On success, all of
+				 * the fields of PROTO should be filled in with
+				 * values appropriate for the protocol, and
+				 * *DESC should be a MOO value to pass to
+				 * network_make_listener() in order to create the
+				 * server's initial listening point.
 				 */
 
 extern enum error network_make_listener(server_listener sl, Var desc,
 					network_listener * nl, 
 					const char **name, const char **ip_address,
-					uint16_t *port, bool use_ipv6);
+					uint16_t *port, bool use_ipv6 USE_TLS_BOOL_DEF TLS_CERT_PATH_DEF);
 				/* DESC is the second argument in a call to the
 				 * built-in MOO function `listen()'; it should
 				 * be used as a specification of a new local
@@ -91,9 +201,10 @@ extern enum error network_make_listener(server_listener sl, Var desc,
 				 */
 
 extern int network_listen(network_listener nl);
-				/* The network should begin accepting
-				 * connections on the given listening point,
-				 * returning true iff this is now possible.
+				/* Prepare for accepting connections on the
+				 * given file descriptor, returning true if
+				 * successful.  FD was returned by a call to
+				 * network_make_listener().
 				 */
 
 extern int network_send_line(network_handle nh, const char *line,
@@ -147,7 +258,7 @@ extern void network_resume_input(network_handle nh);
 				 * given connection.
 				 */
 
-extern void network_set_connection_binary(network_handle, int);
+extern void network_set_connection_binary(network_handle, bool);
 				/* Set the given connection into or out of
 				 * `binary input mode'.
 				 */
@@ -230,9 +341,7 @@ extern int network_set_connection_option(network_handle nh,
 				 */
 
 #ifdef OUTBOUND_NETWORK
-#include "structures.h"
-
-extern enum error network_open_connection(Var arglist, server_listener sl, bool use_ipv6);
+extern enum error network_open_connection(Var arglist, server_listener sl, bool use_ipv6 USE_TLS_BOOL_DEF);
 				/* The given MOO arguments should be used as a
 				 * specification of a remote network connection
 				 * to be made.  If the arguments are OK and the
@@ -299,5 +408,47 @@ int network_parse_proxy_string(char *command, Stream *new_connection_name, struc
                  * for the connection. */
 
 extern char *get_port_str(int port);
+
+#ifdef USE_TLS
+extern int network_handle_is_tls(network_handle);
+extern int nlistener_is_tls(const void *);
+extern Var tls_connection_info(network_handle);
+#endif
+
+typedef void (*network_fd_callback) (int fd, void *data);
+
+extern void network_register_fd(int fd, network_fd_callback readable,
+				network_fd_callback writable, void *data);
+				/* The file descriptor FD will be selected for
+				 * at intervals (whenever the networking module
+				 * is doing its own I/O processing).  If FD
+				 * selects true for reading and READABLE is
+				 * non-zero, then READABLE will be called,
+				 * passing FD and DATA.  Similarly for
+				 * WRITABLE.
+				 */
+
+extern void network_unregister_fd(int fd);
+				/* Any existing registration for FD is
+				 * forgotten.
+				 */
+
+#ifndef HAVE_ACCEPT4
+extern int network_set_nonblocking(int fd);
+				/* Enable nonblocking I/O on the file
+				 * descriptor FD.  Return true iff successful.
+				 */
+#endif
+
+extern int rewrite_connection_name(network_handle nh, const char *destination, const char *destination_port, const char *source, const char *source_port);
+extern int network_name_lookup_rewrite(Objid obj, const char *name);
+extern bool network_is_localhost(network_handle nh);
+				/* Return true if the network handle's destination IP address
+				   is coming from 127.0.0.1 or ::1 */
+extern void lock_connection_name_mutex(const network_handle nh);
+extern void unlock_connection_name_mutex(const network_handle nh);
+extern void increment_nhandle_refcount(const network_handle nh);
+extern void decrement_nhandle_refcount(const network_handle nh);
+extern int nhandle_refcount(const network_handle nh);
 
 #endif				/* Network_H */

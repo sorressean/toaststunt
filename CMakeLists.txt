@@ -1,8 +1,8 @@
 cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR 2)
-set(VERSION_MINOR 6)
-set(VERSION_RELEASE 2)
-set(VERSION_EXT "")
+set(VERSION_MINOR 7)
+set(VERSION_RELEASE 0)
+set(VERSION_EXT "_6")
 project(ToastStunt VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_RELEASE} LANGUAGES CXX C)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/CMakeModules/")
@@ -127,6 +127,7 @@ find_package(PCRE)
 find_package(CURL)
 find_package(ASPELL)
 find_package(SQLite3)
+find_package(OpenSSL)
 
 # Millions of source files
 set(src_CSRCS
@@ -184,7 +185,6 @@ set(src_CXXSRCS
     src/match.cc
     src/network.cc
     src/net_mplex.cc
-    src/net_proto.cc
     src/numbers.cc
     src/objects.cc
     src/parse_cmd.cc
@@ -258,6 +258,11 @@ endif()
 if(SQLITE3_FOUND)
     include_directories(${SQLITE3_INCLUDE_DIRS})
     target_link_libraries(moo ${SQLITE3_LIBRARIES})
+endif()
+
+if(OPENSSL_FOUND)
+    include_directories(${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(moo ${OPENSSL_LIBRARIES})
 endif()
 
 # Setup #defines as needed
