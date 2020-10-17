@@ -485,10 +485,10 @@ void register_sorressean_extensions()
     register_function("join", 1, 2, bf_join, TYPE_LIST, TYPE_STR);
     register_function("listremove_duplicates", 1, 1, bf_list_remove_duplicates, TYPE_LIST);
     register_function("all_contents", 1, 1, bf_all_contents, TYPE_OBJ);
-//    register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
-//    register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
-//    register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
-//    register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
+    register_function("bit_or", 2, 2, bf_bit_or, TYPE_INT, TYPE_INT);
+    register_function("bit_and", 2, 2, bf_bit_and, TYPE_INT, TYPE_INT);
+    register_function("bit_xor", 2, 2, bf_bit_xor, TYPE_INT, TYPE_INT);
+    register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
     register_function("clamp", 3, 3, bf_clamp, TYPE_NUMERIC, TYPE_NUMERIC, TYPE_NUMERIC);
     register_function("collect_stats", 1, 1, bf_collect_stats, TYPE_LIST);
 }
