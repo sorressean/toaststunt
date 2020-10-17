@@ -6,7 +6,7 @@
 #include "utils.h"                      // var_dup
 #include "server.h"                     // server options
 #include "list.h"                       // listappend
-#include "net_multi.h"                  // network_fd shenanigans
+#include "network.h"                    // network_fd shenanigans
 #include "log.h"                        // errlog
 #include "map.h"
 #include <unordered_map>
@@ -100,7 +100,13 @@ background_suspender(vm the_vm, void *data)
     // Register so we can write to the pipe and resume the main loop if the MOO is idle
     network_register_fd(w->fd[0], network_callback, nullptr, data);
 
-    thpool_add_work(*(w->pool), run_callback, data);
+    int add_work_success = thpool_add_work(*(w->pool), run_callback, data);
+
+    if (add_work_success < 0) {
+        errlog("Error adding work to thread pool\n");
+        deallocate_background_waiter(w);
+        return E_QUOTA;
+    }
 
     return E_NONE;
 }
@@ -133,7 +139,7 @@ background_thread(void (*callback)(Var, Var*), Var* data, char *human_title, thr
         w->pool = (the_pool == nullptr ? &background_pool : the_pool);
         if (pipe(w->fd) == -1)
         {
-            errlog("Failed to create pipe for background thread\n");
+            log_perror("Failed to create pipe for background thread");
             deallocate_background_waiter(w);
             return make_error_pack(E_QUOTA);
         }
@@ -157,6 +163,8 @@ bool can_create_thread()
 /* Insert the background waiter into the process table. */
 void initialize_background_waiter(background_waiter *waiter)
 {
+    waiter->fd[0] = -1;
+    waiter->fd[1] = -1;
     waiter->handle = next_background_handle;
     background_process_table[next_background_handle] = waiter;
     next_background_handle++;
@@ -168,8 +176,10 @@ void deallocate_background_waiter(background_waiter *waiter)
 {
     int handle = waiter->handle;
     network_unregister_fd(waiter->fd[0]);
-    close(waiter->fd[0]);
-    close(waiter->fd[1]);
+    if (waiter->fd[0] >= 0)
+        close(waiter->fd[0]);
+    if (waiter->fd[1] >= 0)
+        close(waiter->fd[1]);
     free_var(waiter->return_value);
     free_var(waiter->data);
     free(waiter->human_title);

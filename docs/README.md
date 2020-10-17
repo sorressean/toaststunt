@@ -26,9 +26,13 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
 - Simplex Noise
 - [Argon2id Hashing](https://github.com/P-H-C/phc-winner-argon2)
 - 64-bit Integers (with the choice to fall back to 32-bit integers; $maxint and $minint set automatically)
-- Network Improvements (including IPv6 connection support and threaded DNS lookups)
 - HAProxy Source IP Rewriting (see notes below if you need to disable this)
 - User friendly traceback error messages
+
+- Networking improvements:
+    - IPv6 connection support
+    - Threaded DNS lookups
+    - Secure TLS connections in `listen()` and `open_network_connection()`
 
 - Waifs:
     - Call :recycle on waifs when they're destroyed
@@ -141,6 +145,7 @@ ToastStunt is a fork of the LambdaMOO / Stunt server. It has a number of feature
     - '-m' command line option to clear all last_move properties in your database (and not set them again for the lifetime of the process).
     - Build system is now CMake
     - Boolean (BOOL) type
+    - Allow handling of SIGUSR signals in the database with `#0:handle_signal()`
 
 ## Build Instructions
 ### **Debian/Ubuntu**
@@ -228,4 +233,6 @@ Due to the way proxy detection works, if you're connecting to your MOO from loca
 
 ## Support and Development
 
-Realtime support and collaborative discussion for ToastStunt primarily takes place on the 'toaststunt' channel on ChatMUD. Barring this, the [Miriani Message Boards](https://board.toastsoft.net/) are another good resource for assistance.
+For support or collaborative discussions, you can join:
+1. [Discord](https://discord.gg/XyXP43e)
+2. The 'toaststunt' channel in ChatMUD.

@@ -206,7 +206,11 @@ db_init_object(Object *o)
     o->children = new_list(0);
 
     o->location = var_ref(nothing);
+#ifdef NO_CLEAR_LAST_MOVE
+    o->last_move = new_map();
+#else
     o->last_move = (clear_last_move ? var_ref(zero) : new_map());
+#endif
     o->contents = new_list(0);
 
     o->propval = nullptr;
@@ -1065,7 +1069,9 @@ db_change_location(Objid oid, Objid new_location, int position)
 
     free_var(objects[oid]->location);
     objects[oid]->location = Var::new_obj(new_location);
+#ifndef NO_CLEAR_LAST_MOVE
     if (!clear_last_move) {
+#endif
         if (objects[oid]->last_move.type != TYPE_MAP) {
             free_var(objects[oid]->last_move);
             objects[oid]->last_move = new_map();
@@ -1076,8 +1082,9 @@ db_change_location(Objid oid, Objid new_location, int position)
         last_move = mapinsert(last_move, var_ref(source_key), Var::new_obj(old_location));
 
         objects[oid]->last_move = last_move;
+#ifndef NO_CLEAR_LAST_MOVE
     }
-
+#endif
 }
 
 int

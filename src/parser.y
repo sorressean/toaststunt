@@ -25,6 +25,8 @@
 #include "my-math.h"
 #include <stdlib.h>
 #include <string.h>
+#include <functional>
+
 #include "ast.h"
 #include "code_gen.h"
 #include "config.h"
@@ -42,6 +44,7 @@
 #include "sym_table.h"
 #include "utils.h"
 #include "version.h"
+#include "waif.h"
 
 static Stmt            *prog_start;
 static int              dollars_ok;
@@ -444,12 +447,14 @@ expr:
 		}
 	| expr '.' ':' tID
 		{
-            /* Waif properties get turned into foo.(":bar") 
+            /* Treat foo.:bar (waif properties) like foo.(":bar") 
                (we should be using  WAIF_PROP_PREFIX here...) */
 		    Expr *prop = alloc_var(TYPE_STR);
-            char *newstr = (char *)mymalloc(strlen($4) + 1, M_STRING);
-            sprintf(newstr, ":%s", $4);
-		    prop->e.var.v.str = newstr;
+			char *newstr;
+            asprintf(&newstr, "%c%s", WAIF_PROP_PREFIX, $4);
+			dealloc_string($4);
+		    prop->e.var.v.str = alloc_string(newstr);
+			free(newstr);
 		    $$ = alloc_binary(EXPR_PROP, $1, prop);
 		}
 	| expr '.' '(' expr ')'
@@ -536,7 +541,8 @@ expr:
 		    unsigned f_no;
 
 		    $$ = alloc_expr(EXPR_CALL);
-		    if ((f_no = number_func_by_name($1)) == FUNC_NOT_FOUND) {
+const auto result = number_func_by_name($1);
+		    if (!result.has_value()) {
 			/* Replace with call_function("$1", @args) */
 			Expr           *fname = alloc_var(TYPE_STR);
 			Arg_List       *a = alloc_arg_list(ARG_NORMAL, fname);
@@ -544,9 +550,14 @@ expr:
 			fname->e.var.v.str = $1;
 			a->next = $3;
 			warning("Unknown built-in function: ", $1);
-			$$->e.call.func = number_func_by_name("call_function");
+/**
+* This could fail presumably, but there were no checks prior to this,
+* so I chose to leave it rather than try to abort and exclude code.
+*/
+			$$->e.call.func = *number_func_by_name("call_function");
 			$$->e.call.args = a;
 		    } else {
+						f_no = *result;
 			$$->e.call.func = f_no;
 			$$->e.call.args = $3;
 			dealloc_string($1);

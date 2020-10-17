@@ -332,12 +332,16 @@ ng_read_object(int anonymous)
     o->location = dbio_read_var();
 
     if (dbio_input_version >= DBV_Last_Move)
+#ifndef NO_CLEAR_LAST_MOVE
         if (clear_last_move) {
             dbio_read_var();
             o->last_move = var_ref(zero);
         } else {
+#endif
             o->last_move = dbio_read_var();
+#ifndef NO_CLEAR_LAST_MOVE
         }
+#endif
     else
         o->last_move = new_map();
 

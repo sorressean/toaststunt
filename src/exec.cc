@@ -36,7 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "net_multi.h"
+#include "network.h"
 
 #include "exec.h"
 #include "functions.h"
@@ -428,6 +428,15 @@ bf_exec(Var arglist, Byte next, void *vdata, Objid progr)
             goto free_cmd;
         }
         in = str_dup(in);
+    }
+
+    /* If there's a length mismatch, it likely means the argument string
+       contained ~00. Instead of truncating the string and potentially
+       creating a difficult to debug situation, we raise E_INVARG. */
+    if (in && memo_strlen(in) != len) {
+        free_str(in);
+        pack = make_error_pack(E_INVARG);
+        goto free_cmd;
     }
 
     /* check perms */

@@ -16,6 +16,7 @@
  *****************************************************************************/
 
 #include <chrono>
+#include <optional>
 #include <string.h>
 #include <stdarg.h>
 
@@ -47,6 +48,8 @@
 #include "version.h"
 #include "background.h"
 #include "unparse.h"
+
+using namespace std;
 
 /* the following globals are the guts of the virtual machine: */
 static activation *activ_stack = nullptr;
@@ -926,8 +929,9 @@ run(char raise, enum error resumption_error, Var * result)
                 separator = '.';                                                                 \
             else if (the_err == E_VERBNF)                                                        \
                 separator = ':';                                                                 \
-            stream_printf(error_stream, "%s: #%" PRIdN "%c%s%s", unparse_error(the_err),         \
-                          the_object.v.obj, separator, the_missing.v.str,                        \
+            stream_printf(error_stream, "%s: ", unparse_error(the_err));                         \
+            unparse_value(error_stream, the_object);                                             \
+            stream_printf(error_stream, "%c%s%s", separator, the_missing.v.str,                  \
                           the_err == E_VERBNF ? "()" : "");                                      \
         }                                                                                        \
         char *error_message = str_dup(reset_stream(error_stream));                               \
@@ -1813,12 +1817,16 @@ finish_comparison:
                     enum error err;
 
                     err = waif_get_prop(obj.v.waif, propname.v.str, &prop, RUN_ACTIV.progr);
-                    free_var(propname);
                     free_var(obj);
-                    if (err == E_NONE)
-                        PUSH(prop);
-                    else
-                        PUSH_ERROR(err);
+                    if (err == E_PROPNF)
+                        PUSH_X_NOT_FOUND(E_PROPNF, propname, var_ref(obj));
+                    else {
+                        free_var(propname);
+                        if (err == E_NONE)
+                            PUSH(prop);
+                        else
+                            PUSH_ERROR(err);
+                    }
                 } else if (!obj.is_object() || propname.type != TYPE_STR) {
                     var_type incorrect_type = propname.type != TYPE_STR ? propname.type : obj.type;
                     free_var(propname);
@@ -1866,6 +1874,8 @@ finish_comparison:
                     err = waif_get_prop(obj.v.waif, propname.v.str, &prop, RUN_ACTIV.progr);
                     if (err == E_NONE)
                         PUSH(prop);
+                    else if (err == E_PROPNF)
+                        PUSH_X_NOT_FOUND(E_PROPNF, propname, var_ref(obj));
                     else
                         PUSH_ERROR(err);
                 } else if (!obj.is_object() || propname.type != TYPE_STR) {
@@ -3036,9 +3046,9 @@ run_interpreter(char raise, enum error e,
     total_cputime.type = TYPE_FLOAT;
 
     interpreter_is_running = 1;
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    chrono::high_resolution_clock::time_point start = chrono::high_resolution_clock::now();
     ret = run(raise, e, result);
-    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
+    chrono::duration<double> elapsed = chrono::high_resolution_clock::now() - start;
     total_cputime.v.fnum = elapsed.count();
     interpreter_is_running = 0;
 
@@ -3354,12 +3364,13 @@ bf_call_function(Var arglist, Byte next, void *vdata, Objid progr)
     if (next == 1) {        /* first call */
         const char *fname = arglist.v.list[1].v.str;
 
-        fnum = number_func_by_name(fname);
-        if (fnum == FUNC_NOT_FOUND) {
+        const auto result = number_func_by_name(fname);
+        if (!result.has_value()) {
             p = make_raise_pack(E_INVARG, "Unknown built-in function",
                                 var_ref(arglist.v.list[1]));
             free_var(arglist);
         } else {
+            fnum = *result;
             arglist = listdelete(arglist, 1);
             p = call_bi_func(fnum, arglist, next, progr, vdata);
         }
@@ -3399,9 +3410,12 @@ bf_call_function_read(void)
 
     if (!strncmp(line, hdr, hlen)) {
         line += hlen;
-        if ((s->fnum = number_func_by_name(line)) == FUNC_NOT_FOUND)
+        const auto result = number_func_by_name(line);
+        if (!result.has_value())
             errlog("CALL_FUNCTION: Unknown built-in function: %s\n", line);
-        else if (read_bi_func_data(s->fnum, &s->data, pc_for_bi_func_data()))
+
+        s->fnum = *result;
+        if (read_bi_func_data(s->fnum, &s->data, pc_for_bi_func_data()))
             return s;
     }
     return nullptr;
@@ -3917,7 +3931,7 @@ check_pc_validity(Program * prog, int which_vector, unsigned pc)
      */
     return (pc < bc->size
             && (bc->vector[pc - 1] == OP_CALL_VERB
-                || bc->vector[pc - 2] == OP_BI_FUNC_CALL));
+                || bc->vector[pc - 3] == OP_BI_FUNC_CALL));
 }
 
 int
@@ -3991,10 +4005,12 @@ read_activ(activation * a, int which_vector)
     }
     if (a->bi_func_pc != 0) {
         func_name = dbio_read_string();
-        if ((i = number_func_by_name(func_name)) == FUNC_NOT_FOUND) {
+        const auto result = number_func_by_name(func_name);
+        if (!result.has_value()) {
             errlog("READ_ACTIV: Unknown built-in function `%s'\n", func_name);
             return 0;
         }
+        i = *result;
         a->bi_func_id = i;
         if (!read_bi_func_data(a->bi_func_id, &a->bi_func_data,
                                &a->bi_func_pc)) {

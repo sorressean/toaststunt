@@ -1,24 +1,45 @@
 # ToastStunt ChangeLog
 
-## 2.6.2 (In Progress)
-- Apply standard task limits to threaded background tasks.
+## 2.7.0 (In Progress)
+### Bug Fixes
+- Fix a memory leak in `open_network_connection()` that occurred after a successful connection.
+- Fix a bug where the SERVER FULL message wouldn't display the connection name properly.
+
+### New Features
+- Support TLS / SSL connections in both `listen()` and `open_network_connection()`. Certificate and key must be configured properly in options.h. See warnings at the end of this changelog for important information about these changes.
+- Add a command line switch (`+t`) to enable TLS on default listening ports.
+
+*** COMPATIBILITY WARNINGS ***
+- The arguments for `listen()` have changed! Listen now accepts an optional third argument as a map. This map takes over the previous arguments and has the keys: ipv6, tls, certificate, key, print-messages. So if you wanted everything, you would use: `listen(#0, 1234, ["ipv6" -> 1, "tls" -> 1, "certificate" -> "/etc/certs/something.pem", "key" -> "/etc/certs/privkey.pem", "print-messages" -> 1]`
+- The arguments for `open_network_connection()` have changed! All previous optional arguments have been folded into a single optional third MAP argument. It accepts the keys: ipv6, listener, tls. So if you wanted to open a TLS connection to an IPv6 address using #6 as the listener, you would do: `open_network_connection("2607:5300:60:4be0::", 1234, ["ipv6" -> 1, "listener" -> #6, "tls" -> 1])`
+
+## 2.6.2 (Sep 5, 2020)
+### Bug Fixes
 - Fix a bug that would cause the number of queued tasks (as seen by `queue_info(<player>)`) to drop into the negatives, effectively disabling task limits.
-- Standardize the modulus operator across platforms.
 - Fix an off-by-one error in `locate_by_name()`
 - Fix a crash and spoofing potential in proxy rewriting.
+- Fix a bug in `sort()` that could have caused a server crash.
+- Fix a bug where using floats as map keys could result in lost values. (e.g. [12.1 -> 1, 12.2 -> 2] would lose 12.1)
+- Fix a bug that could cause a crash if verb code referenced a waif property with the waif property prefix. (e.g. `foo.bar.:baz`)
+- Fix a bug in `exec()` that would cause a heap overflow if null bytes were introduced as arguments.
+- Fix a memory leak when using complex types as the third argument to `slice()`
+
+### New Features
+- Apply standard task limits to threaded background tasks.
+- Standardize the modulus operator across platforms.
 - Add math functions `cbrt()`, `atan2`, `asinh`, `atanh`, and `acosh`.
 - Add support for the SQLite `REGEXP` operator.
 - Add an `sqlite_interrupt(<handle>)` function to abort long-running SQLite queries.
-- Allow for retrieval of runtime environment variables from a running task, unhandled exceptions or timeouts, and lagging tasks via `handle_uncaught_error`, `handle_task_timeout`, and `handle_lagging_task`, respectively. TO control automatic inclusion of runtime environment variables, set the `INCLUDE_RT_VARS` server option. Variables will be added to the end of the stack frame as a map.
+- Allow for retrieval of runtime environment variables from a running task, unhandled exceptions or timeouts, and lagging tasks via `handle_uncaught_error`, `handle_task_timeout`, and `handle_lagging_task`, respectively. To control automatic inclusion of runtime environment variables, set the `INCLUDE_RT_VARS` server option. Variables will be added to the end of the stack frame as a map.
 - Providing a true argument to `queued_tasks()` will include all variables for any running tasks that you are authorized to examine. Additionally, a third argument has been added to the task_stack() builtin, which toggles whether variables are included with each frame for the provided task.
 - Add a `BOOL` type, to unambiguously indicate whether a value is TRUE or FALSE. The `true` and `false` variables are set at task runtime and can be overridden within verbs if needed.
 - The `parse_json` function now uses the BOOL type instead of converting to strings. Similarly, passing a boolean to `generate_json` is understood to be a BOOL.
 - Add debug information about task queues to `queue_info(<object>)` when called by a wizard.
-- Fix a bug in `sort()` that could have caused a server crash.
 - Improve reporting of 'x not found' errors. Now when you get a property, verb, or variable not found error, two things happen: First, the traceback message will tell you what exactly was not found. Second, if you catch the error in a try-except, the object number and name of the missing thing will be available as the third argument in the error list (the value).
 - Improve type mismatch error reporting. Traceback messages will now tell you what type was expected vs the type that you supplied. The value returned in a caught E_TYPE is now a list of the format `{{expected types}, supplied type}`. Builtin functions will now tell you which argument was incorrect and the expected / supplied type for that argument.`
 - The addition operator now accepts lists. When adding two lists together, the two will be concatenated. (e.g. {1, 2, 3} + {4, 5, 6} => {1, 2, 3, 4, 5, 6}) When adding another type to a list, it will append that value to the end of the list. (e.g. {1, 2} + #123 => {1, 2, #123})
-- Fix a bug where using floats as map keys could result in lost values. (e.g. [12.1 -> 1, 12.2 -> 2] would lose 12.1)
+- User-defined signals (SIGUSR1 and SIGUSR2) will now be passed to #0:handle_signal as strings. If this verb does not exist, or the verb returns a non-true value, the default server behavior will be assumed. If #0:handle_signal returns a true value, the server will conclude that the signal has been appropriately handled and not go any further.
+- `switch_player()` now prints standard messages by default. As such, a new argument has been added. If supplied and true, the switch will be silent and no messages printed.
 
 **WARNING**: This version increments the database version (DBV_Bool), making databases incompatible with previous releases.
 

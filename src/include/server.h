@@ -43,7 +43,7 @@ typedef struct {		/* Server's handle on a listening point */
 extern server_listener null_server_listener;
 
 extern server_handle server_new_connection(server_listener l,
-					 network_handle h, int outbound);
+					 network_handle h, bool outbound);
 				/* Called by the network whenever a new player
 				 * connection is created.  If `outbound' is
 				 * true, then the connection is being made from
@@ -170,7 +170,7 @@ extern int find_network_handle(Objid obj, network_handle **handle);
 /***************************************************************/
 
 #include "streams.h"
-char is_localhost(Objid connection);
+bool is_localhost(Objid connection);
 int proxy_connected(Objid connection, char *command);
 
 #include "db.h"
@@ -267,9 +267,9 @@ enum Fork_Result {
 };
 extern enum Fork_Result fork_server(const char *subtask_name);
 
-extern void player_connected_silent(Objid old_id, Objid new_id);
+extern void player_switched(Objid old_id, Objid new_id, bool silent);
 extern void player_connected(Objid old_id, Objid new_id,
-			     int is_newly_created);
+			     bool is_newly_created);
 extern int is_player_connected(Objid player);
 extern void notify(Objid player, const char *message);
 extern void boot_player(Objid player);

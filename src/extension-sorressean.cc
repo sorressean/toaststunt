@@ -31,9 +31,9 @@ using namespace std;
 using namespace boost::accumulators;
 
 static Var
-list_assoc(Var vtarget, Var vlist, const int vindex)
+list_assoc(Var& vtarget, Var& vlist, const int vindex)
 {
-    const int length = vlist.v.list[0].v.num;
+    const auto length = vlist.v.list[0].v.num;
     for (int i = 1; i <= length; ++i)
         {
             if (vlist.v.list[i].type == TYPE_LIST &&
@@ -47,9 +47,9 @@ list_assoc(Var vtarget, Var vlist, const int vindex)
 }
 
 static int
-list_iassoc(Var vtarget, Var vlist, const int vindex)
+list_iassoc(Var& vtarget, Var& vlist, const int vindex)
 {
-    const int length = vlist.v.list[0].v.num;
+    const auto length = vlist.v.list[0].v.num;
     for (int i = 1; i <= length; ++i)
         {
             if (vlist.v.list[i].type == TYPE_LIST &&
@@ -66,7 +66,7 @@ static package
 bf_iassoc(Var arglist, Byte next, void *vdata, Objid progr)
 {
     /* (ANY, LIST[, INT]) */
-    const int index = (arglist.v.list[0].v.num == 3?arglist.v.list[3].v.num : 1);
+    const auto index = (arglist.v.list[0].v.num == 3?arglist.v.list[3].v.num : 1);
     if (index < 1)
         {
             free_var(arglist);
@@ -83,7 +83,7 @@ static package
 bf_assoc(Var arglist, Byte next, void *vdata, Objid progr)
 {
     /* (ANY, LIST[, INT]) */
-    const int index = (arglist.v.list[0].v.num == 3 ? arglist.v.list[3].v.num : 1);
+    const auto index = (arglist.v.list[0].v.num == 3 ? arglist.v.list[3].v.num : 1);
     if (index < 1)
         {
             free_var(arglist);
@@ -103,7 +103,7 @@ static int do_maphasvalue(Var key, Var value, void *data, int first)
 }
 static package bf_maphasvalue(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    const int result = mapforeach(arglist.v.list[1], do_maphasvalue, &arglist.v.list[2]);
+    const auto result = mapforeach(arglist.v.list[1], do_maphasvalue, &arglist.v.list[2]);
     free_var(arglist);
 
     Var ret = Var::new_int(result);
@@ -224,7 +224,8 @@ bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var newList = list_dup(arglist.v.list[1]);
 //now add the second one.
-    for (int index = 1; index <= arglist.v.list[2].v.list[0].v.num; ++index)
+const auto length = arglist.v.list[2].v.list[0].v.num;
+    for (int index = 1; index <= length; ++index)
         {
             if (!ismember(arglist.v.list[2].v.list[index], newList, 0))
                 {
@@ -236,7 +237,8 @@ bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(newList);
 }
 
-static package bf_bit_or(Var arglist, Byte next, void *vdata, Objid progr)
+static package
+bf_bit_or(Var arglist, Byte next, void *vdata, Objid progr)
 {
     int a = arglist.v.list[1].v.num;
     int b = arglist.v.list[2].v.num;
@@ -244,7 +246,8 @@ static package bf_bit_or(Var arglist, Byte next, void *vdata, Objid progr)
 
     return make_var_pack(Var::new_int(a|b));
 }
-static package bf_bit_and(Var arglist, Byte next, void *vdata, Objid progr)
+static package
+bf_bit_and(Var arglist, Byte next, void *vdata, Objid progr)
 {
     int a = arglist.v.list[1].v.num;
     int b = arglist.v.list[2].v.num;
@@ -252,7 +255,8 @@ static package bf_bit_and(Var arglist, Byte next, void *vdata, Objid progr)
 
     return make_var_pack(Var::new_int(a&b));
 }
-static package bf_bit_xor(Var arglist, Byte next, void *vdata, Objid progr)
+static package
+bf_bit_xor(Var arglist, Byte next, void *vdata, Objid progr)
 {
     int a = arglist.v.list[1].v.num;
     int b = arglist.v.list[2].v.num;
@@ -260,7 +264,8 @@ static package bf_bit_xor(Var arglist, Byte next, void *vdata, Objid progr)
 
     return make_var_pack(Var::new_int(a^b));
 }
-static package bf_bit_not(Var arglist, Byte next, void *vdata, Objid progr)
+static package
+bf_bit_not(Var arglist, Byte next, void *vdata, Objid progr)
 {
     int a = arglist.v.list[1].v.num;
     free_var(arglist);
@@ -286,7 +291,7 @@ static unsigned int count_all_list_elements(const Var& list)
     return count;
 }
 
-static unsigned int list_vectorize(const Var& list, Var& values, unsigned  int position = 1)
+static unsigned int list_vectorize(const Var& list, const Var& values, unsigned  int position = 1)
 {
     const auto count = list.v.list[0].v.num;
     if (count == 0)
@@ -306,7 +311,8 @@ static unsigned int list_vectorize(const Var& list, Var& values, unsigned  int p
     return position;
 }
 
-static package bf_list_flatten(Var arglist, Byte next, void *vdata, Objid progr)
+static package
+bf_list_flatten(Var arglist, Byte next, void *vdata, Objid progr)
 {
     const auto all_elements = count_all_list_elements(arglist.v.list[1]);
     auto ret = new_list(all_elements);
