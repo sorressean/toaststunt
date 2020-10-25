@@ -224,7 +224,7 @@ bf_set_merge(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var newList = list_dup(arglist.v.list[1]);
 //now add the second one.
-const auto length = arglist.v.list[2].v.list[0].v.num;
+    const auto length = arglist.v.list[2].v.list[0].v.num;
     for (int index = 1; index <= length; ++index)
         {
             if (!ismember(arglist.v.list[2].v.list[index], newList, 0))
@@ -472,6 +472,107 @@ bf_collect_stats(Var arglist, Byte next, void *vdata, Objid progr)
     return background_thread(collect_stats_callback, &arglist, human_string);
 }
 
+static inline double distance3(const double x1, const double y1, const double z1, const double x2, const double y2, const double z2)
+{
+    double result = 0;
+    result = pow(x1-x2, 2);
+    result += pow(y1-y2, 2);
+    result += pow(z1-z2, 2);
+    return sqrt(result);
+}
+
+/**
+* mdistance({x,y,z}, {{x,y,z,unused},{x,y,z,unused}...}, cutoff) => {{distance,unused}, {distance,unused}}
+*/
+static package
+bf_mdistance(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (arglist.v.list[1].v.list[0].v.num != 3)
+        {
+            free_var(arglist);
+            return make_error_pack(E_RANGE);
+        }
+
+    for (auto index = 1; index <= 3; ++index)
+        {
+            const auto valueType = (arglist.v.list[1].v.list[index].type);
+
+            if (valueType != TYPE_INT && valueType != TYPE_FLOAT)
+                {
+                    free_var(arglist);
+                    return make_error_pack(E_TYPE);
+                }
+        }
+
+    const auto count = arglist.v.list[2].v.list[0].v.num;
+//sanity check the list of objects first.
+    for (auto index = 1; index <= count; ++index)
+        {
+            if (arglist.v.list[2].v.list[index].v.list[0].v.num < 3)
+                {
+                    free_var(arglist);
+                    return make_error_pack(E_RANGE);
+                }
+            for (auto value = 1; value <= 3; ++value)
+                {
+                    const auto valueType = arglist.v.list[2].v.list[index].v.list[value].type;
+                    if (valueType != TYPE_INT && valueType != TYPE_FLOAT)
+                        {
+                            free_var(arglist);
+                            return make_error_pack(E_TYPE);
+                        }
+                }
+        }
+
+    const double x1 = (arglist.v.list[1].v.list[1].type == TYPE_INT?
+                       (float)(arglist.v.list[1].v.list[1].v.num)
+                       :arglist.v.list[1].v.list[1].v.fnum);
+    const double y1 = (arglist.v.list[1].v.list[2].type == TYPE_INT?
+                       (float)(arglist.v.list[1].v.list[2].v.num)
+                       :arglist.v.list[1].v.list[2].v.fnum);
+    const double z1 = (arglist.v.list[1].v.list[3].type == TYPE_INT?
+                       (float)(arglist.v.list[1].v.list[3].v.num)
+                       :arglist.v.list[1].v.list[3].v.fnum);
+    const double cutoff = (arglist.v.list[3].type == TYPE_INT?
+                           (float)(arglist.v.list[3].v.num)
+                           :arglist.v.list[3].v.fnum);
+
+    Var distances = new_list(0);
+
+    for (auto index = 1; index <= count; ++index)
+        {
+            const double x2 = (arglist.v.list[2].v.list[index].v.list[1].type == TYPE_INT?
+                               (float)(arglist.v.list[2].v.list[index].v.list[1].v.num)
+                               :arglist.v.list[2].v.list[index].v.list[1].v.fnum);
+            const double y2 = (arglist.v.list[2].v.list[index].v.list[2].type == TYPE_INT?
+                               (float)(arglist.v.list[2].v.list[index].v.list[2].v.num)
+                               :arglist.v.list[2].v.list[index].v.list[2].v.fnum);
+            const double z2 = (arglist.v.list[2].v.list[index].v.list[3].type == TYPE_INT?
+                               (float)(arglist.v.list[2].v.list[index].v.list[3].v.num)
+                               :arglist.v.list[2].v.list[index].v.list[3].v.fnum);
+            const auto distance = distance3(x1, y1, z1, x2, y2, z2);
+            if (distance > cutoff)
+                continue;
+
+            Var result = new_list(0);
+            result = listappend(result, Var::new_float(distance));
+
+//now append extra data from the list.
+            const auto listSize = arglist.v.list[2].v.list[index].v.list[0].v.num;
+            if (listSize > 3)
+                {
+                    for (auto secondIndex = 4; secondIndex <= listSize; ++secondIndex)
+                        {
+                            result = listappend(result, var_dup(arglist.v.list[2].v.list[index].v.list[secondIndex]));
+                        }
+                }
+            distances=listappend(distances, result);
+        }
+
+    free_var(arglist);
+    return make_var_pack(distances);
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -491,4 +592,6 @@ void register_sorressean_extensions()
     register_function("bit_not", 1, 1, bf_bit_not, TYPE_INT);
     register_function("clamp", 3, 3, bf_clamp, TYPE_NUMERIC, TYPE_NUMERIC, TYPE_NUMERIC);
     register_function("collect_stats", 1, 1, bf_collect_stats, TYPE_LIST);
+    register_function("mdistance", 3, 3, bf_mdistance, TYPE_LIST, TYPE_LIST, TYPE_FLOAT);
 }
+
