@@ -1,3 +1,6 @@
 [submodule "src/dependencies/phc-winner-argon2"]
 	path = src/dependencies/phc-winner-argon2
 	url = https://github.com/P-H-C/phc-winner-argon2
+[submodule "src/dependencies/vectorclass"]
+	path = src/dependencies/vectorclass
+	url = https://github.com/vectorclass/version2
