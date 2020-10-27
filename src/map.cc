@@ -1088,6 +1088,21 @@ bf_maphaskey(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(ret);
 }
 
+static package
+bf_mapget(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto node = maplookup(arglist.v.list[1], arglist.v.list[2], nullptr, true);
+    if (!node)
+    {
+        const auto ret = var_ref(arglist.v.list[3]);
+        free_var(arglist);
+        return make_var_pack(ret);
+    }
+
+    const auto ret = var_ref(node->value);
+    free_var(arglist);
+    return make_var_pack(ret);
+}
 
 void
 register_map(void)
@@ -1096,4 +1111,5 @@ register_map(void)
     register_function("mapkeys", 1, 1, bf_mapkeys, TYPE_MAP);
     register_function("mapvalues", 1, -1, bf_mapvalues, TYPE_MAP);
     register_function("maphaskey", 2, 3, bf_maphaskey, TYPE_MAP, TYPE_ANY, TYPE_INT);
+    register_function("mapget", 3, 3, bf_mapget, TYPE_MAP, TYPE_ANY, TYPE_ANY);
 }
