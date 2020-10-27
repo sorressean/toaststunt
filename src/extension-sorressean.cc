@@ -11,6 +11,11 @@
 #include "log.h"            // oklog()
 #include "map.h" //mapforeach, etc
 #include "utils.h" //free_var plus many others
+
+#define VCL_NAMESPACE VCL
+#include "dependencies/vectorclass/vectorclass.h"
+#include "dependencies/vectorclass/vectormath_exp.h"
+
 #include <sstream>
 #include <vector>
 
@@ -573,6 +578,307 @@ bf_mdistance(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(distances);
 }
 
+static bool is_list_valid_vector(const Var& list)
+{
+    if (list.v.list[0].v.num != 3)
+        return false;
+
+    for (auto index = 1; index <= 3; ++index)
+        {
+            const auto valueType = list.v.list[index].type;
+            if (valueType != TYPE_INT && valueType != TYPE_FLOAT)
+                return false;
+        }
+
+    return true;
+}
+
+/**
+* list_to_vector presupposes you have already checked that
+* the vector is valid using is_list_valid_vector.
+* The smallest vector is a vec4 of doubles.
+*/
+static void list_to_Vec4f(const Var& list, VCL::Vec4f& vec)
+{
+    float values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+
+    for (auto index = 1; index <=3; ++index)
+        {
+            values[index - 1] =(
+                                   list.v.list[index].type == TYPE_INT?
+                                   (double)list.v.list[index].v.num
+                                   : (double)list.v.list[index].v.fnum);
+        }
+
+    vec.load(values);
+}
+
+static void Vec4i_to_list(const VCL::Vec4i& vec, Var& list)
+{
+    int values[4] = {0,0,0,0};
+    vec.store(values);
+
+    for (int index = 0; index < 3; ++index)
+        {
+            list = listappend(list, Var::new_int(values[index]));
+        }
+}
+
+static void Vec4f_to_list(const VCL::Vec4f& vec, Var& list)
+{
+    float values[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    vec.store(values);
+
+    for (int index = 0; index < 3; ++index)
+        {
+            list = listappend(list, Var::new_float(values[index]));
+        }
+}
+
+static package
+bf_vec3_exponent(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vec;
+    list_to_Vec4f(arglist.v.list[1], vec);
+    free_var(arglist);
+    VCL::Vec4i results;
+    results = VCL::exponent(vec);
+    auto resultsList = new_list(0);
+    Vec4i_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_fraction(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vec;
+    list_to_Vec4f(arglist.v.list[1], vec);
+    free_var(arglist);
+    VCL::Vec4f results;
+    results = VCL::fraction(vec);
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_sqrt(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vec;
+    list_to_Vec4f(arglist.v.list[1], vec);
+    free_var(arglist);
+    VCL::Vec4f results;
+    results = VCL::sqrt(vec);
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_pow(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    const float exponent = arglist.v.list[2].v.fnum;
+
+    VCL::Vec4f vec;
+    list_to_Vec4f(arglist.v.list[1], vec);
+    free_var(arglist);
+    VCL::Vec4f results;
+    results = VCL::pow(vec, exponent);
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_mul_add(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]) || !is_list_valid_vector(arglist.v.list[3]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB, vecC;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    list_to_Vec4f(arglist.v.list[3], vecC);
+    free_var(arglist);
+
+    VCL::Vec4f results;
+    results = VCL::mul_add(vecA, vecB, vecC);
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_mul_sub(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]) || !is_list_valid_vector(arglist.v.list[3]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB, vecC;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    list_to_Vec4f(arglist.v.list[3], vecC);
+    free_var(arglist);
+
+    VCL::Vec4f results;
+    results = VCL::mul_sub(vecA, vecB, vecC);
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_add(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    free_var(arglist);
+
+    VCL::Vec4f results = vecA + vecB;
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_sub(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    free_var(arglist);
+
+    VCL::Vec4f results = vecA - vecB;
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_mul(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    free_var(arglist);
+
+    VCL::Vec4f results = vecA * vecB;
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+static package
+bf_vec3_div(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    free_var(arglist);
+
+    VCL::Vec4f results = vecA / vecB;
+    auto resultsList = new_list(0);
+    Vec4f_to_list(results, resultsList);
+    return make_var_pack(resultsList);
+}
+
+inline static float dotproduct(const VCL::Vec4f& a, const VCL::Vec4f& b)
+{
+    VCL::Vec4f mul = a * b;
+    const auto sum = VCL::horizontal_add(mul);
+    return sum;
+}
+
+static package
+bf_vec3_dot(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]) || !is_list_valid_vector(arglist.v.list[2]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA, vecB;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    list_to_Vec4f(arglist.v.list[2], vecB);
+    free_var(arglist);
+
+    return make_var_pack(Var::new_float(dotproduct(vecA, vecB)));
+}
+
+static package
+bf_vec3_length(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    if (!is_list_valid_vector(arglist.v.list[1]))
+        {
+            free_var(arglist);
+            return make_error_pack(E_INVARG);
+        }
+
+    VCL::Vec4f vecA;
+    list_to_Vec4f(arglist.v.list[1], vecA);
+    free_var(arglist);
+
+    const auto dot = dotproduct(vecA, vecA);
+    const auto length = sqrt(dot);
+    return make_var_pack(Var::new_float(length));
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -593,5 +899,16 @@ void register_sorressean_extensions()
     register_function("clamp", 3, 3, bf_clamp, TYPE_NUMERIC, TYPE_NUMERIC, TYPE_NUMERIC);
     register_function("collect_stats", 1, 1, bf_collect_stats, TYPE_LIST);
     register_function("mdistance", 3, 3, bf_mdistance, TYPE_LIST, TYPE_LIST, TYPE_FLOAT);
+    register_function("vector3_exponent", 1, 1, bf_vec3_exponent, TYPE_LIST);
+    register_function("vector3_fraction", 1, 1, bf_vec3_fraction, TYPE_LIST);
+    register_function("vector3_pow", 2, 2, bf_vec3_pow, TYPE_LIST, TYPE_FLOAT);
+    register_function("vector3_sqrt", 1, 1, bf_vec3_sqrt, TYPE_LIST);
+    register_function("vector3_mul_add", 3, 3, bf_vec3_mul_add, TYPE_LIST, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_mul_sub", 3, 3, bf_vec3_mul_sub, TYPE_LIST, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_add", 2, 2, bf_vec3_add, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_sub", 2, 2, bf_vec3_sub, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_mul", 2, 2, bf_vec3_mul, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_div", 2, 2, bf_vec3_div, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_dot", 2, 2, bf_vec3_dot, TYPE_LIST, TYPE_LIST);
+    register_function("vector3_length", 1, 1, bf_vec3_length, TYPE_LIST);
 }
-
