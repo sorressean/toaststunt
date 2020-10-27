@@ -118,10 +118,10 @@ typedef enum {          /* Reasons for executing a FINALLY handler */
  * overhead, if any).
  */
 static Var *rt_stack_quick;
-#define RT_STACK_QUICKSIZE  15
+#define RT_STACK_QUICKSIZE  30
 
 static void
-alloc_rt_stack(activation * a, Num size)
+alloc_rt_stack(activation * a, const Num size)
 {
     Var *res;
 
@@ -241,7 +241,7 @@ static int raise_error(package p, enum outcome *outcome);
 static void abort_task(enum abort_reason reason);
 
 static int
-unwind_stack(Finally_Reason why, Var value, enum outcome *outcome)
+unwind_stack(const Finally_Reason why, Var value, enum outcome *outcome)
 {
     /* Returns true iff the interpreter should stop,
      * in which case *outcome is set to the correct outcome to return.
@@ -415,9 +415,8 @@ find_handler_activ(Var code)
     /* Returns the index of the hottest activation with an active exception
      * handler for the given code.
      */
-    int frame;
 
-    for (frame = top_activ_stack; frame >= 0; frame--) {
+    for (int frame = top_activ_stack; frame >= 0; frame--) {
         activation *a = &(activ_stack[frame]);
         Var *v, *vv;
 
@@ -437,9 +436,8 @@ Var
 make_rt_var_map(Var * rt_env, const char **var_names, unsigned size)
 {
     Var rt_vars = new_map();
-    int i;
 
-    for (i = 0; i < size; ++i) {
+    for (int i = 0; i < size; ++i) {
         if (rt_env[i].type != TYPE_NONE)
             rt_vars = mapinsert(rt_vars, str_ref_to_var(var_names[i]), var_ref(rt_env[i]));
     }
@@ -536,7 +534,7 @@ raise_error(package p, enum outcome *outcome)
 {
     /* ASSERT: p.kind == package::BI_RAISE */
     int handler_activ = find_handler_activ(p.u.raise.code);
-    int include_vars = server_int_option("INCLUDE_RT_VARS", 0);
+    const int include_vars = server_int_option("INCLUDE_RT_VARS", 0);
     Finally_Reason why;
     Var value;
 
@@ -605,7 +603,7 @@ save_hinfo:
 /**** activation manipulation ****/
 
 static int
-push_activation(void)
+push_activation()
 {
     if (top_activ_stack < max_stack_size - 1) {
         top_activ_stack++;
@@ -3130,7 +3128,7 @@ check_activ_stack_size(int max)
 }
 
 static int
-current_max_stack_size(void)
+current_max_stack_size()
 {
     int max = server_int_option("max_stack_depth", DEFAULT_MAX_STACK_DEPTH);
 
@@ -3401,7 +3399,7 @@ bf_call_function_write(void *data)
 }
 
 static void *
-bf_call_function_read(void)
+bf_call_function_read()
 {
     struct cf_state *s = (struct cf_state *)alloc_data(sizeof(struct cf_state));
     const char *line = dbio_read_string();
@@ -3425,7 +3423,7 @@ static package
 bf_raise(Var arglist, Byte next, void *vdata, Objid progr)
 {
     package p;
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     Var code = var_ref(arglist.v.list[1]);
     const char *msg = (nargs >= 2
                        ? str_ref(arglist.v.list[2].v.str)
@@ -3446,7 +3444,7 @@ static package
 bf_suspend(Var arglist, Byte next, void *vdata, Objid progr)
 {
     static double seconds, *secondsp = nullptr;
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
 
     if (nargs >= 1) {
         seconds = arglist.v.list[1].type == TYPE_INT ?
@@ -3475,8 +3473,9 @@ static package
 bf_yield_if_needed(Var arglist, Byte next, void *vdata, Objid progr)
 {
     static double seconds, *secondsp = nullptr;
-    int min_ticks, min_seconds;
-    int nargs = arglist.v.list[0].v.num;
+    int min_ticks = 0;
+int min_seconds = 0;
+    const int nargs = arglist.v.list[0].v.num;
 
     if (nargs >= 1)
         seconds = arglist.v.list[1].type == TYPE_INT ?
@@ -3506,9 +3505,9 @@ bf_yield_if_needed(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_read(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* ([object [, non_blocking]]) */
-    int argc = arglist.v.list[0].v.num;
+    const int argc = arglist.v.list[0].v.num;
     static Objid connection;
-    int non_blocking = (argc >= 2
+    const int non_blocking = (argc >= 2
                         && is_true(arglist.v.list[2]));
 
     if (argc >= 1)

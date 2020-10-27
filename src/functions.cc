@@ -226,7 +226,6 @@ call_bi_func(unsigned n, Var arglist, Byte func_pc,
         error_msg = new_stream(20);
 
     if (func_pc == 1) {     /* check arg types and count *ONLY* for first entry */
-        int k, max;
         Var *args = arglist.v.list;
 
         /*
@@ -248,9 +247,9 @@ call_bi_func(unsigned n, Var arglist, Byte func_pc,
          * Check argument count
          * (Can't always check in the compiler, because of @)
          */
-        if (args[0].v.num < f.minargs
-                || (f.maxargs != -1 && args[0].v.num > f.maxargs)) {
-            int num_args = args[0].v.num;
+const auto num_args = args[0].v.num;
+        if ( num_args < f.minargs
+                || (f.maxargs != -1 && num_args > f.maxargs)) {
             free_var(arglist);
             stream_printf(error_msg, "%s (expected", unparse_error(E_ARGS));
             if (f.minargs != f.maxargs)
@@ -265,11 +264,11 @@ call_bi_func(unsigned n, Var arglist, Byte func_pc,
         /*
          * Check argument types
          */
-        max = (f.maxargs == -1) ? f.minargs : args[0].v.num;
+        const auto max = (f.maxargs == -1) ? f.minargs : args[0].v.num;
 
-        for (k = 0; k < max; k++) {
-            var_type proto = f.prototype[k];
-            var_type arg = args[k + 1].type;
+        for (int k = 0; k < max; k++) {
+            const var_type proto = f.prototype[k];
+            const var_type arg = args[k + 1].type;
 
             if (!(proto == TYPE_ANY
                     || (proto == TYPE_NUMERIC && (arg == TYPE_INT
