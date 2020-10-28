@@ -23,7 +23,7 @@
 
 extern Var new_list(const int size);
 extern void destroy_list(Var list);
-extern Var list_dup(const Var& list);
+extern Var list_dup(Var list);
 
 extern Var listappend(Var list, Var value);
 extern Var listinsert(Var& list, Var value, int pos);
@@ -33,7 +33,7 @@ extern Var listrangeset(Var list, int from, int to, Var value);
 extern Var listconcat(Var first, Var second);
 extern Var setadd(Var& list, Var value);
 extern Var setremove(Var list, Var value);
-extern Var sublist(const Var& list, int lower, int upper);
+extern Var sublist(Var list, int lower, int upper);
 extern int listequal(const Var& lhs, const Var& rhs, const int case_matters);
 
 extern int list_sizeof(const Var *list);

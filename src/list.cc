@@ -94,8 +94,8 @@ new_list(const int size)
 void
 destroy_list(Var list)
 {
-    Var *pv = nullptr;
-    int i = 0;
+    int i;
+    Var *pv;
 
     for (i = list.v.list[0].v.num, pv = list.v.list + 1; i > 0; i--, pv++)
         free_var(*pv);
@@ -111,12 +111,12 @@ destroy_list(Var list)
 
 /* called from utils.c */
 Var
-list_dup(const Var& list)
+list_dup(Var list)
 {
-    const int n = list.v.list[0].v.num;
+    int i, n = list.v.list[0].v.num;
     Var _new = new_list(n);
 
-    for (int i = 1; i <= n; i++)
+    for (i = 1; i <= n; i++)
         _new.v.list[i] = var_ref(list.v.list[i]);
 
     gc_set_color(_new.v.list, gc_get_color(list.v.list));
@@ -127,11 +127,11 @@ list_dup(const Var& list)
 int
 listforeach(const Var& list, listfunc func, void *data)
 {				/* does NOT consume `list' */
-    int n;
+    int i, n;
     int first = 1;
     int ret;
 
-    for (int i = 1, n = list.v.list[0].v.num; i <= n; i++) {
+    for (i = 1, n = list.v.list[0].v.num; i <= n; i++) {
         if ((ret = (*func)(list.v.list[i], data, first)))
             return ret;
         first = 0;
@@ -324,16 +324,17 @@ listrangeset(Var base, int from, int to, Var value)
 }
 
 Var
-sublist(const Var& list, int lower, int upper)
+sublist(Var list, int lower, int upper)
 {
     if (lower > upper) {
         free_var(list);
         return new_list(0);
     } else {
         Var r;
+        int i;
 
         r = new_list(upper - lower + 1);
-        for (int i = lower; i <= upper; i++)
+        for (i = lower; i <= upper; i++)
             r.v.list[i - lower + 1] = var_ref(list.v.list[i]);
 
         free_var(list);
