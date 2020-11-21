@@ -43,12 +43,11 @@ do_map_iteration(Var key, Var value, void *data, int first)
 }
 
 int
-ismember(const Var lhs, const Var rhs, int case_matters)
+ismember(const Var& lhs, const Var& rhs, const int case_matters)
 {
     if (rhs.type == TYPE_LIST) {
-        int i;
-
-        for (i = 1; i <= rhs.v.list[0].v.num; i++) {
+        const auto count = rhs.v.list[0].v.num;
+        for (int i = 1; i <= count; i++) {
             if (equality(lhs, rhs.v.list[i], case_matters)) {
                 return i;
             }
