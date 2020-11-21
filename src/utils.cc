@@ -264,7 +264,7 @@ complex_free_var(Var v)
 #ifdef ENABLE_GC
 /* Corresponds to `Increment' in Bacon and Rajan. */
 Var
-complex_var_ref(Var v)
+complex_var_ref(Var& v)
 {
     switch (v.type) {
         case TYPE_STR:
@@ -351,7 +351,7 @@ complex_var_dup(Var v)
  * usually be called in a context where we already know the type.
  */
 int
-var_refcount(Var v)
+var_refcount(Var& v)
 {
     switch (v.type) {
         case TYPE_STR:
