@@ -1227,7 +1227,8 @@ db_fixup_owners(const Objid obj)
                 v->owner = NOTHING;
 
         p = o->propval;
-        for (int i = 0, count = o->nval; i < count; i++)
+const auto count = o->nval;
+        for (int i = 0; i < count; i++)
             if (p[i].owner == obj)
                 p[i].owner = NOTHING;
     }
