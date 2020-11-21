@@ -178,7 +178,7 @@ typedef struct Waif {
     var_type type;
 
     bool
-    is_complex() {
+    is_complex()  const {
 	return TYPE_COMPLEX_FLAG & type;
     }
 
