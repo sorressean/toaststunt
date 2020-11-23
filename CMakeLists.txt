@@ -50,8 +50,8 @@ set(CMAKE_C_STANDARD 99)
 set(SHARED_COMPILE_FLAGS "-march=native -O2")
 
 # The default for non-developers: Optimization enabled and all warnings silenced.
-set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w")
+set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w -march=native")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w -march=native")
 
 # The normal LambdaMOO way: Optimizations and warnings enabled
 set(CMAKE_C_FLAGS_WARN   "${SHARED_COMPILE_FLAGS} -Wall -Wno-unused-parameter -Wno-sign-compare -Wno-switch")
