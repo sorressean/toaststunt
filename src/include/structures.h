@@ -17,7 +17,6 @@
 
 #ifndef Structures_h
 #define Structures_h 1
-
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -183,22 +182,22 @@ typedef struct Waif {
     }
 
     bool
-    is_none() {
+    is_none() const {
 	return TYPE_NONE == type;
     }
 
     bool
-    is_collection() {
+    is_collection() const {
 	return TYPE_LIST == type || TYPE_MAP == type || TYPE_ANON == type;
     }
 
     bool
-    is_object() {
+    is_object() const {
 	return TYPE_OBJ == type || TYPE_ANON == type || TYPE_WAIF == type;
     }
 
     bool
-    is_int() {
+    is_int() const {
 	return TYPE_INT == type;
     }
 
