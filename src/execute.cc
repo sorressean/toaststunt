@@ -994,7 +994,7 @@ do_test:
 
                     cond = POP();
                     if (!is_true(cond)) {   /* jump if false */
-                        unsigned lab = READ_BYTES(bv, bc.numbytes_label);
+                        const unsigned lab = READ_BYTES(bv, bc.numbytes_label);
                         JUMP(lab);
                     }
                     else {
@@ -1006,19 +1006,19 @@ do_test:
 
             case OP_JUMP:
             {
-                unsigned lab = READ_BYTES(bv, bc.numbytes_label);
+                const unsigned lab = READ_BYTES(bv, bc.numbytes_label);
                 JUMP(lab);
             }
             break;
 
             case OP_FOR_RANGE:
             {
-                unsigned id = READ_BYTES(bv, bc.numbytes_var_name);
-                unsigned lab = READ_BYTES(bv, bc.numbytes_label);
-                Var from, to;
+                const unsigned id = READ_BYTES(bv, bc.numbytes_var_name);
+                const unsigned lab = READ_BYTES(bv, bc.numbytes_label);
+                
 
-                to = TOP_RT_VALUE;
-                from = NEXT_TOP_RT_VALUE;
+                Var to = TOP_RT_VALUE;
+                Var from = NEXT_TOP_RT_VALUE;
 
                 if ((to.type != TYPE_INT && to.type != TYPE_OBJ)
                         || to.type != from.type) {
@@ -1064,8 +1064,6 @@ do_test:
 
             case OP_IMM:
             {
-                int slot;
-
                 /* If we'd just throw it away anyway (eg verbdocs),
                    skip both OPs.  This accounts for most executions
                    of OP_IMM in my tests.
@@ -1074,26 +1072,24 @@ do_test:
                     bv += bc.numbytes_literal + 1;
                     break;
                 }
-                slot = READ_BYTES(bv, bc.numbytes_literal);
+                const auto slot = READ_BYTES(bv, bc.numbytes_literal);
                 PUSH_REF(RUN_ACTIV.prog->literals[slot]);
             }
             break;
 
             case OP_MAP_CREATE:
             {
-                Var map;
-
-                map = new_map();
+                Var map = new_map();
                 PUSH(map);
             }
             break;
 
             case OP_MAP_INSERT:
             {
-                Var r, map, key, value;
-                key = POP(); /* any except list or map */
-                value = POP(); /* any */
-                map = POP(); /* should be map */
+Var r;
+                const Var key = POP(); /* any except list or map */
+                const Var value = POP(); /* any */
+                Var map = POP(); /* should be map */
                 if (map.type != TYPE_MAP || (key.is_collection() && TYPE_ANON != key.type)) {
                     free_var(key);
                     free_var(value);
@@ -1113,9 +1109,7 @@ do_test:
 
             case OP_MAKE_EMPTY_LIST:
             {
-                Var list;
-
-                list = new_list(0);
+                const Var list = new_list(0);
                 PUSH(list);
             }
             break;
