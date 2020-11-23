@@ -29,7 +29,7 @@
 static unsigned alloc_num[Sizeof_Memory_Type];
 
 static inline int
-refcount_overhead(Memory_Type type)
+refcount_overhead(const Memory_Type type)
 {
     /* These are the only allocation types that are addref()'d.
      * As long as we're living on the wild side, avoid getting the
@@ -67,16 +67,15 @@ refcount_overhead(Memory_Type type)
 }
 
 void *
-mymalloc(unsigned size, Memory_Type type)
+mymalloc(unsigned size, const Memory_Type type)
 {
-    char *memptr;
+    char *memptr = nullptr;
     char msg[100];
-    int offs;
 
     if (size == 0)      /* For queasy systems */
         size = 1;
 
-    offs = refcount_overhead(type);
+    const auto offs = refcount_overhead(type);
     memptr = (char *) malloc(offs + size);
     if (!memptr) {
         sprintf(msg, "memory allocation (size %u) failed!", size);
@@ -96,9 +95,7 @@ mymalloc(unsigned size, Memory_Type type)
             ((int *) memptr)[-2] = size - 1;
 #endif /* MEMO_STRLEN */
 #ifdef MEMO_VALUE_BYTES
-        if (type == M_LIST)
-            ((int *) memptr)[-2] = 0;
-        if (type == M_TREE)
+        if (type == M_LIST || type == M_TREE)
             ((int *) memptr)[-2] = 0;
 #endif /* MEMO_VALUE_BYTES */
     }
@@ -136,7 +133,7 @@ str_dup(const char *s)
 void *
 myrealloc(void *ptr, unsigned size, Memory_Type type)
 {
-    int offs = refcount_overhead(type);
+    const auto offs = refcount_overhead(type);
     static char msg[100];
 
     ptr = realloc((char *) ptr - offs, size + offs);
