@@ -1116,10 +1116,10 @@ Var r;
 
             case OP_LIST_ADD_TAIL:
             {
-                Var r, tail, list;
+                Var r;
 
-                tail = POP();   /* whatever */
-                list = POP();   /* should be list */
+                const Var tail = POP();   /* whatever */
+                Var list = POP();   /* should be list */
                 if (list.type != TYPE_LIST) {
                     free_var(list);
                     free_var(tail);
@@ -1138,10 +1138,10 @@ Var r;
 
             case OP_LIST_APPEND:
             {
-                Var r, tail, list;
+                Var r;
 
-                tail = POP();   /* second, should be list */
-                list = POP();   /* first, should be list */
+                const Var tail = POP();   /* second, should be list */
+                Var list = POP();   /* first, should be list */
                 if (tail.type != TYPE_LIST || list.type != TYPE_LIST) {
                     free_var(list);
                     free_var(tail);
@@ -1164,11 +1164,9 @@ Var r;
              */
             case OP_INDEXSET:
             {
-                Var value, index, list;
-
-                value = POP();  /* rhs value */
-                index = POP();  /* index, should be integer for list or str */
-                list = POP();   /* lhs except last index, should be list or str */
+                const Var value = POP();  /* rhs value */
+                const Var index = POP();  /* index, should be integer for list or str */
+                Var list = POP();   /* lhs except last index, should be list or str */
                 /* whole thing should mean list[index] = value OR
                  * map[key] = value */
 #ifdef WAIF_DICT
@@ -1228,7 +1226,7 @@ Var r;
                         free_var(list);
                         PUSH_ERROR(E_INVARG);
                     } else if (list.type == TYPE_LIST) {
-                        Var res = listset(list, value, index.v.num);
+                        const Var res = listset(list, value, index.v.num);
                         if (value_bytes(res) <= server_int_option_cached(SVO_MAX_LIST_VALUE_BYTES))
                             PUSH(res);
                         else {
@@ -1236,7 +1234,7 @@ Var r;
                             PUSH_ERROR_UNLESS_QUOTA(E_QUOTA);
                         }
                     } else if (list.type == TYPE_MAP) {
-                        Var res = mapinsert(list, index, value);
+                        const Var res = mapinsert(list, index, value);
                         if (value_bytes(res) <= server_int_option_cached(SVO_MAX_MAP_VALUE_BYTES))
                             PUSH(res);
                         else {
@@ -1256,9 +1254,7 @@ Var r;
 
             case OP_MAKE_SINGLETON_LIST:
             {
-                Var list;
-
-                list = new_list(1);
+                                Var list = new_list(1);
                 list.v.list[1] = POP();
                 PUSH(list);
             }
@@ -1266,7 +1262,7 @@ Var r;
 
             case OP_CHECK_LIST_FOR_SPLICE:
                 if (TOP_RT_VALUE.type != TYPE_LIST) {
-                    var_type rt_value_type = TOP_RT_VALUE.type;
+                    const var_type rt_value_type = TOP_RT_VALUE.type;
                     free_var(POP());
                     PUSH_TYPE_MISMATCH(1, rt_value_type, TYPE_LIST);
                 }
@@ -1285,12 +1281,9 @@ Var r;
             case OP_EQ:
             case OP_NE:
             {
-                Var rhs, lhs, ans;
-
-                rhs = POP();
-                lhs = POP();
-                ans.type = TYPE_INT;
-                ans.v.num = (op == OP_EQ
+                const Var rhs = POP();
+                const Var lhs = POP();
+                                const Var ans = Var::new_int(op == OP_EQ
                              ? equality(rhs, lhs, 0)
                              : !equality(rhs, lhs, 0));
                 PUSH(ans);
@@ -1304,11 +1297,10 @@ Var r;
             case OP_GE:
             case OP_LE:
             {
-                Var rhs, lhs, ans;
-                int comparison;
-
-                rhs = POP();
-                lhs = POP();
+                int comparison = 0;
+Var ans;
+                const Var rhs = POP();
+                const Var lhs = POP();
                 if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT)
                         && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT)) {
                     ans = compare_numbers(lhs, rhs);
@@ -1372,25 +1364,20 @@ finish_comparison:
 
             case OP_IN:
             {
-                Var lhs, rhs, ans;
-
-                rhs = POP();    /* should be list or map */
-                lhs = POP();    /* lhs, any type */
+                const Var rhs = POP();    /* should be list or map */
+                const Var lhs = POP();    /* lhs, any type */
                 if (lhs.type == TYPE_STR && rhs.type == TYPE_STR) {
-                    ans.type = TYPE_INT;
-                    ans.v.num = strindex(rhs.v.str, memo_strlen(rhs.v.str), lhs.v.str, memo_strlen(lhs.v.str), 0);
+                    const Var ans = Var::new_int(strindex(rhs.v.str, memo_strlen(rhs.v.str), lhs.v.str, memo_strlen(lhs.v.str), 0));
                     PUSH(ans);
                     free_var(lhs);
                     free_var(rhs);
                 } else if (rhs.type != TYPE_LIST && rhs.type != TYPE_MAP) {
-                    var_type rhs_type = rhs.type;
-                    var_type lhs_type = lhs.type;
+                    const var_type rhs_type = rhs.type;
                     free_var(rhs);
                     free_var(lhs);
                     PUSH_TYPE_MISMATCH(2, rhs.type, TYPE_LIST, TYPE_MAP);
                 } else {
-                    ans.type = TYPE_INT;
-                    ans.v.num = ismember(lhs, rhs, 0);
+                    const Var ans = Var::new_int(ismember(lhs, rhs, 0));
                     PUSH(ans);
                     free_var(rhs);
                     free_var(lhs);
