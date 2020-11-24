@@ -247,37 +247,89 @@ compare_numbers(Var a, Var b)
     return ans;
 }
 
+Var do_add(const Var& a, const Var& b)
+{
+if ((a.type != TYPE_INT && a.type != TYPE_FLOAT) || (b.type != TYPE_INT && b.type != TYPE_FLOAT))
+return Var::new_error(E_TYPE);
 
-#define SIMPLE_BINARY(name, op)                 \
-    Var                                         \
-    do_ ## name(Var a, Var b)                   \
-    {                                           \
-        Var ans;                                \
-        \
-        if (a.type != b.type) {                 \
-            ans.type = TYPE_ERR;                \
-            ans.v.err = E_TYPE;                 \
-        } else if (a.type == TYPE_INT) {        \
-            ans.type = TYPE_INT;                \
-            ans.v.num = a.v.num op b.v.num;     \
-        } else {                                \
-            double d = a.v.fnum op b.v.fnum;    \
-            \
-            if (!IS_REAL(d)) {                  \
-                ans.type = TYPE_ERR;            \
-                ans.v.err = E_FLOAT;            \
-            } else {                            \
-                ans.type = TYPE_FLOAT;          \
-                ans.v.fnum = d;                 \
-            }                                   \
-        }                                       \
-        \
-        return ans;                             \
-    }
+const bool use_double = (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT);
+const auto left = (a.type == TYPE_INT? a.v.num : a.v.fnum);
+const auto right = (b.type == TYPE_INT? b.v.num : b.v.fnum);
 
-SIMPLE_BINARY(add, +)
-SIMPLE_BINARY(subtract, -)
-SIMPLE_BINARY(multiply, *)
+if (use_double)
+{
+double result = static_cast<double>(left) + static_cast<double>(right);
+if (!IS_REAL(result))
+return Var::new_error(E_FLOAT);
+else
+return Var::new_float(result);
+}
+else
+return Var::new_int(left + right);
+}
+
+Var do_multiply(const Var& a, const Var& b)
+{
+if ((a.type != TYPE_INT && a.type != TYPE_FLOAT) || (b.type != TYPE_INT && b.type != TYPE_FLOAT))
+return Var::new_error(E_TYPE);
+
+const bool use_double = (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT);
+const auto left = (a.type == TYPE_INT? a.v.num : a.v.fnum);
+const auto right = (b.type == TYPE_INT? b.v.num : b.v.fnum);
+
+if (use_double)
+{
+double result = static_cast<double>(left) * static_cast<double>(right);
+if (!IS_REAL(result))
+return Var::new_error(E_FLOAT);
+else
+return Var::new_float(result);
+}
+else
+return Var::new_int(left * right);
+}
+
+Var do_subtract(const Var& a, const Var& b)
+{
+if ((a.type != TYPE_INT && a.type != TYPE_FLOAT) || (b.type != TYPE_INT && b.type != TYPE_FLOAT))
+return Var::new_error(E_TYPE);
+
+const bool use_double = (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT);
+const auto left = (a.type == TYPE_INT? a.v.num : a.v.fnum);
+const auto right = (b.type == TYPE_INT? b.v.num : b.v.fnum);
+
+if (use_double)
+{
+double result = static_cast<double>(left) - static_cast<double>(right);
+if (!IS_REAL(result))
+return Var::new_error(E_FLOAT);
+else
+return Var::new_float(result);
+}
+else
+return Var::new_int(left - right);
+}
+
+Var do_divide(const Var& a, const Var& b)
+{
+if ((a.type != TYPE_INT && a.type != TYPE_FLOAT) || (b.type != TYPE_INT && b.type != TYPE_FLOAT))
+return Var::new_error(E_TYPE);
+
+const bool use_double = (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT);
+const auto left = (a.type == TYPE_INT? a.v.num : a.v.fnum);
+const auto right = (b.type == TYPE_INT? b.v.num : b.v.fnum);
+
+if (use_double)
+{
+const double result = static_cast<double>(left) / static_cast<double>(right);
+if (!IS_REAL(result))
+return Var::new_error(E_FLOAT);
+else
+return Var::new_float(result);
+}
+else
+return Var::new_int(left / right);
+}
 
 Var
 do_modulus(Var a, Var b)
