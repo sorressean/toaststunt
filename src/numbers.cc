@@ -332,7 +332,7 @@ return Var::new_int(left / right);
 }
 
 Var
-do_modulus(Var a, Var b)
+do_modulus(const Var& a, const Var& b)
 {
     Var ans;
 

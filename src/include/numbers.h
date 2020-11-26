@@ -29,7 +29,7 @@ extern Var do_add(const Var& a, const Var& b);
 extern Var do_subtract(const Var& a, const Var& b);
 extern Var do_multiply(const Var& a, const Var& b);
 extern Var do_divide(const Var& a, const Var& b);
-extern Var do_modulus(Var, Var);
+extern Var do_modulus(const Var& a, const Var& b);
 extern Var do_power(Var, Var);
 
 extern sosemanuk_key_context key_context;
