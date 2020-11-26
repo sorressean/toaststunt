@@ -1112,8 +1112,6 @@ do_test:
 
             case OP_LIST_ADD_TAIL:
             {
-                Var r;
-
                 const Var tail = POP();   /* whatever */
                 Var list = POP();   /* should be list */
                 if (list.type != TYPE_LIST) {
@@ -1121,7 +1119,7 @@ do_test:
                     free_var(tail);
                     PUSH_TYPE_MISMATCH(1, list.type, TYPE_LIST);
                 } else {
-                    r = listappend(list, tail);
+                    const Var r = listappend(list, tail);
                     if (value_bytes(r) <= server_int_option_cached(SVO_MAX_LIST_VALUE_BYTES))
                         PUSH(r);
                     else {
@@ -1134,8 +1132,6 @@ do_test:
 
             case OP_LIST_APPEND:
             {
-                Var r;
-
                 const Var tail = POP();   /* second, should be list */
                 Var list = POP();   /* first, should be list */
                 if (tail.type != TYPE_LIST || list.type != TYPE_LIST) {
@@ -1143,7 +1139,7 @@ do_test:
                     free_var(tail);
                     PUSH_TYPE_MISMATCH(1, tail.type != TYPE_LIST ? tail.type : list.type, TYPE_LIST);
                 } else {
-                    r = listconcat(list, tail);
+                    const Var r = listconcat(list, tail);
                     if (value_bytes(r) <= server_int_option_cached(SVO_MAX_LIST_VALUE_BYTES))
                         PUSH(r);
                     else {
