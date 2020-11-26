@@ -334,34 +334,28 @@ return Var::new_int(left / right);
 Var
 do_modulus(const Var& a, const Var& b)
 {
-    Var ans;
+if ((a.type != TYPE_INT && a.type != TYPE_FLOAT) || (b.type != TYPE_INT && b.type != TYPE_FLOAT))
+return Var::new_error(E_TYPE);
 
-    if (a.type != b.type) {
-        ans.type = TYPE_ERR;
-        ans.v.err = E_TYPE;
-    } else if ((a.type == TYPE_INT && b.v.num == 0) || (a.type == TYPE_FLOAT && b.v.fnum == 0.0)) {
-        ans.type = TYPE_ERR;
-        ans.v.err = E_DIV;
-    } else {
-        if (a.type == TYPE_INT)
-        {
-            const auto n = a.v.num;
-            const auto d = b.v.num;
-            const auto result = (n % d + d) % d;
-            ans.type = TYPE_INT;
-            ans.v.num = result;
-        }
-        else
-        {
-            const auto n = a.v.fnum;
-            const auto d = b.v.fnum;
-            const auto result = fmod((fmod(n, d) + d), d);
-            ans.type = TYPE_FLOAT;
-            ans.v.fnum = result;
-        }
-    }
-    return ans;
+const bool use_double = (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT);
+if (use_double)
+{
+const double left = (a.type == TYPE_INT? static_cast<double>(a.v.num) : a.v.fnum);
+const double right = (b.type == TYPE_INT? static_cast<double>(b.v.num) : b.v.fnum);
+const double result = fmod((fmod(left, right) + right), right);
+if (!IS_REAL(result))
+return Var::new_error(E_FLOAT);
+else
+return Var::new_float(result);
 }
+else
+{
+const int left = a.v.num;
+const int right = b.v.num;
+return Var::new_int((left % right + right) % right);
+}
+}
+
 
 Var
 do_divide(Var a, Var b)
