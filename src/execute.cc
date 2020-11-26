@@ -1271,13 +1271,21 @@ do_test:
                 break;
 
             case OP_EQ:
+            {
+                const Var rhs = POP();
+                const Var lhs = POP();
+                                const Var ans = Var::new_int(equality(rhs, lhs, 0));
+                PUSH(ans);
+                free_var(rhs);
+                free_var(lhs);
+            }
+            break;
+
             case OP_NE:
             {
                 const Var rhs = POP();
                 const Var lhs = POP();
-                                const Var ans = Var::new_int(op == OP_EQ
-                             ? equality(rhs, lhs, 0)
-                             : !equality(rhs, lhs, 0));
+                                const Var ans = Var::new_int(!equality(rhs, lhs, 0));
                 PUSH(ans);
                 free_var(rhs);
                 free_var(lhs);
