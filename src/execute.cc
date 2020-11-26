@@ -990,9 +990,7 @@ next_opcode:
             case OP_EIF:
 do_test:
                 {
-                    Var cond;
-
-                    cond = POP();
+                    const Var cond = POP();
                     if (!is_true(cond)) {   /* jump if false */
                         const unsigned lab = READ_BYTES(bv, bc.numbytes_label);
                         JUMP(lab);
@@ -1016,7 +1014,6 @@ do_test:
                 const unsigned id = READ_BYTES(bv, bc.numbytes_var_name);
                 const unsigned lab = READ_BYTES(bv, bc.numbytes_label);
                 
-
                 Var to = TOP_RT_VALUE;
                 Var from = NEXT_TOP_RT_VALUE;
 
@@ -1079,14 +1076,13 @@ do_test:
 
             case OP_MAP_CREATE:
             {
-                Var map = new_map();
+                const Var map = new_map();
                 PUSH(map);
             }
             break;
 
             case OP_MAP_INSERT:
             {
-Var r;
                 const Var key = POP(); /* any except list or map */
                 const Var value = POP(); /* any */
                 Var map = POP(); /* should be map */
@@ -1096,7 +1092,7 @@ Var r;
                     free_var(map);
                     PUSH_TYPE_MISMATCH(8, key.type, TYPE_STR, TYPE_INT, TYPE_OBJ, TYPE_ERR, TYPE_FLOAT, TYPE_ANON, TYPE_WAIF, TYPE_BOOL);
                 } else {
-                    r = mapinsert(map, key, value);
+                    const Var r = mapinsert(map, key, value);
                     if (value_bytes(r) <= server_int_option_cached(SVO_MAX_MAP_VALUE_BYTES))
                         PUSH(r);
                     else {
@@ -1386,54 +1382,58 @@ finish_comparison:
             break;
 
             case OP_MULT:
+            {
+                const Var rhs = POP();
+                const Var lhs = POP();
+                if ((rhs.type != TYPE_INT && rhs.type != TYPE_FLOAT) || (lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT))
+                {
+                    PUSH_TYPE_MISMATCH(2,
+                    lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT ? lhs.type : rhs.type, TYPE_INT, TYPE_FLOAT);
+                    break;
+                }
+                PUSH(do_multiply(lhs, rhs));
+                break;
+            }
             case OP_MINUS:
+            {
+                const Var rhs = POP();
+                const Var lhs = POP();
+                if ((rhs.type != TYPE_INT && rhs.type != TYPE_FLOAT) || (lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT))
+                {
+                    PUSH_TYPE_MISMATCH(2,
+                    lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT ? lhs.type : rhs.type, TYPE_INT, TYPE_FLOAT);
+                    break;
+                }
+                PUSH(do_subtract(lhs, rhs));
+                break;
+            }
             case OP_DIV:
+            {
+                const Var rhs = POP();
+                const Var lhs = POP();
+                if ((rhs.type != TYPE_INT && rhs.type != TYPE_FLOAT) || (lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT))
+                {
+                    PUSH_TYPE_MISMATCH(2,
+                    lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT ? lhs.type : rhs.type, TYPE_INT, TYPE_FLOAT);
+                    break;
+                }
+                PUSH(do_divide(lhs, rhs));
+                break;
+            }
             case OP_MOD:
             {
-                Var lhs, rhs, ans;
-                var_type lhs_type, rhs_type;
-
-                rhs = POP();    /* should be number */
-                lhs = POP();    /* should be number */
-                if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT)
-                        && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT)) {
-                    switch (op) {
-                        case OP_MULT:
-                            ans = do_multiply(lhs, rhs);
-                            break;
-                        case OP_MINUS:
-                            ans = do_subtract(lhs, rhs);
-                            break;
-                        case OP_DIV:
-                            ans = do_divide(lhs, rhs);
-                            break;
-                        case OP_MOD:
-                            ans = do_modulus(lhs, rhs);
-                            break;
-                        default:
-                            errlog("RUN: Impossible opcode in arith ops: %d\n", op);
-                            break;
-                    }
-                } else {
-                    ans.type = TYPE_ERR;
-                    ans.v.err = E_TYPE;
-                    lhs_type = lhs.type;
-                    rhs_type = rhs.type;
+                const Var rhs = POP();
+                const Var lhs = POP();
+                if ((rhs.type != TYPE_INT && rhs.type != TYPE_FLOAT) || (lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT))
+                {
+                    PUSH_TYPE_MISMATCH(2,
+                    lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT ? lhs.type : rhs.type,
+                    TYPE_INT, TYPE_FLOAT);
+                    break;
                 }
-                free_var(rhs);
-                free_var(lhs);
-                if (ans.type == TYPE_ERR) {
-                    if (ans.v.err == E_TYPE)
-                        PUSH_TYPE_MISMATCH(2,
-                                           lhs_type != TYPE_INT && lhs_type != TYPE_FLOAT ? lhs_type : rhs_type,
-                                           TYPE_INT, TYPE_FLOAT);
-                    else
-                        PUSH_ERROR(ans.v.err);
-                } else {
-                    PUSH(ans);
-                }
+                PUSH(do_modulus(lhs, rhs));
+                break;
             }
-            break;
 
             case OP_ADD:
             {
