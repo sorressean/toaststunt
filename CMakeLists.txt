@@ -47,11 +47,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_C_STANDARD 99)
 
 # These flags are shared by the RELEASE and WARN build types.
-set(SHARED_COMPILE_FLAGS "-march=native -O2")
+set(SHARED_COMPILE_FLAGS "-march=native -O3")
 
 # The default for non-developers: Optimization enabled and all warnings silenced.
-set(CMAKE_C_FLAGS_RELEASE   "${CMAKE_C_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w -march=native")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w -march=native")
+set(CMAKE_C_FLAGS_RELEASE   "-O3 ${CMAKE_C_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w -march=native -fgcse-las -fdevirtualize-at-ltrans -fsched-pressure -fsched-spec-load -fipa-pta -fivopts")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 ${CMAKE_CXX_FLAGS_RELEASE} ${SHARED_COMPILE_FLAGS} -w -march=native -fgcse-las -fdevirtualize-at-ltrans -fsched-pressure -fsched-spec-load -fipa-pta -fivopts")
 
 # The normal LambdaMOO way: Optimizations and warnings enabled
 set(CMAKE_C_FLAGS_WARN   "${SHARED_COMPILE_FLAGS} -Wall -Wno-unused-parameter -Wno-sign-compare -Wno-switch")
