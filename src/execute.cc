@@ -1663,22 +1663,16 @@ do_test:
 
             case OP_NOT:
             {
-                Var arg, ans;
-
-                arg = POP();
-                ans.type = TYPE_INT;
-                ans.v.num = !is_true(arg);
-                PUSH(ans);
+                const Var arg = POP();
+                PUSH(Var::new_int(!is_true(arg)));
                 free_var(arg);
             }
             break;
 
             case OP_UNARY_MINUS:
             {
-                Var arg, ans;
-                var_type arg_type;
-
-                arg = POP();
+                const Var arg = POP();
+                Var ans;
                 if (arg.type == TYPE_INT) {
                     ans.type = TYPE_INT;
                     ans.v.num = -arg.v.num;
@@ -1686,9 +1680,8 @@ do_test:
                     ans.type = TYPE_FLOAT;
                     ans.v.fnum = -arg.v.fnum;
                 } else {
-                    arg_type = arg.type;
                     free_var(arg);
-                    PUSH_TYPE_MISMATCH(2, arg_type, TYPE_INT, TYPE_FLOAT);
+                    PUSH_TYPE_MISMATCH(2, arg.type, TYPE_INT, TYPE_FLOAT);
                     break;
                 }
 
@@ -1699,21 +1692,17 @@ do_test:
 
             case OP_REF:
             {
-                Var index, list;
-
-                index = POP();
-                list = POP();   /* should be list, string, or map */
+                const Var index = POP();
+                const Var list = POP();   /* should be list, string, or map */
 
 #ifdef WAIF_DICT
                 if (list.type == TYPE_WAIF) {
-                    Objid _class;
-                    Var args;
                     enum error err = E_NONE;
 
-                    args = new_list(1);
+                    Var args = new_list(1);
                     args.v.list[1] = var_ref(index);
 
-                    _class = list.v.waif->_class;
+                    const Objid _class = list.v.waif->_class;
                     if (!valid(_class)) {
                         err = E_INVIND;
                     } else if (!is_wizard(db_object_owner(_class))) {
@@ -1833,19 +1822,16 @@ do_test:
 
             case OP_RANGE_REF:
             {
-                Var base, from, to;
-
-                to = POP();
-                from = POP();
-                base = POP();   /* should be map, list or string */
+                const Var to = POP();
+                const Var from = POP();
+                const Var base = POP();   /* should be map, list or string */
 
                 if (base.type != TYPE_MAP && base.type != TYPE_LIST
                         && base.type != TYPE_STR) {
-                    var_type base_type = base.type;
                     free_var(to);
                     free_var(from);
                     free_var(base);
-                    PUSH_TYPE_MISMATCH(3, base_type, TYPE_LIST, TYPE_MAP, TYPE_STR);
+                    PUSH_TYPE_MISMATCH(3, base.type, TYPE_LIST, TYPE_MAP, TYPE_STR);
                 } else if (base.type == TYPE_MAP
                            && ((to.is_collection() && TYPE_ANON != to.type) || (from.is_collection() && TYPE_ANON != from.type))) {
                     var_type to_from_type = to.is_collection() ? to.type : from.type;
@@ -1910,7 +1896,7 @@ do_test:
 
             case OP_G_PUT:
             {
-                unsigned id = READ_BYTES(bv, bc.numbytes_var_name);
+                const unsigned id = READ_BYTES(bv, bc.numbytes_var_name);
                 free_var(RUN_ACTIV.rt_env[id]);
                 RUN_ACTIV.rt_env[id] = var_ref(TOP_RT_VALUE);
             }
@@ -1918,10 +1904,8 @@ do_test:
 
             case OP_G_PUSH:
             {
-                Var value;
-
-                int var_pos = READ_BYTES(bv, bc.numbytes_var_name);
-                value = RUN_ACTIV.rt_env[var_pos];
+                const int var_pos = READ_BYTES(bv, bc.numbytes_var_name);
+                const Var value = RUN_ACTIV.rt_env[var_pos];
                 if (value.type == TYPE_NONE) {
                     Var not_found = str_ref_to_var(*(&RUN_ACTIV.prog->var_names[var_pos]));
                     PUSH_X_NOT_FOUND(E_VARNF, not_found, var_ref(nothing));
@@ -1933,10 +1917,9 @@ do_test:
 
             case OP_GET_PROP:
             {
-                Var propname, obj, prop;
-
-                propname = POP();   /* should be string */
-                obj = POP();        /* should be an object */
+                const Var propname = POP();   /* should be string */
+                const Var obj = POP();        /* should be an object */
+                Var prop;
                 if (obj.type == TYPE_WAIF && propname.type == TYPE_STR) {
                     enum error err;
 
@@ -1961,11 +1944,8 @@ do_test:
                     free_var(obj);
                     PUSH_ERROR(E_INVIND);
                 } else {
-                    db_prop_handle h;
-                    int built_in;
-
-                    h = db_find_property(obj, propname.v.str, &prop);
-                    built_in = db_is_property_built_in(h);
+                    const db_prop_handle h = db_find_property(obj, propname.v.str, &prop);
+                    const int built_in = db_is_property_built_in(h);
 
                     if (!h.ptr) {
                         PUSH_X_NOT_FOUND(E_PROPNF, propname, obj);
@@ -1988,14 +1968,11 @@ do_test:
 
             case OP_PUSH_GET_PROP:
             {
-                Var propname, obj, prop;
-
-                propname = TOP_RT_VALUE;    /* should be string */
-                obj = NEXT_TOP_RT_VALUE;    /* should be an object */
+                const Var propname = TOP_RT_VALUE;    /* should be string */
+                const Var obj = NEXT_TOP_RT_VALUE;    /* should be an object */
+                Var prop;
                 if (obj.type == TYPE_WAIF && propname.type == TYPE_STR) {
-                    enum error err;
-
-                    err = waif_get_prop(obj.v.waif, propname.v.str, &prop, RUN_ACTIV.progr);
+                    const auto err = waif_get_prop(obj.v.waif, propname.v.str, &prop, RUN_ACTIV.progr);
                     if (err == E_NONE)
                         PUSH(prop);
                     else if (err == E_PROPNF)
@@ -2008,11 +1985,8 @@ do_test:
                 } else if (!is_valid(obj))
                     PUSH_ERROR(E_INVIND);
                 else {
-                    db_prop_handle h;
-                    int built_in;
-
-                    h = db_find_property(obj, propname.v.str, &prop);
-                    built_in = db_is_property_built_in(h);
+                    const db_prop_handle h = db_find_property(obj, propname.v.str, &prop);
+                    const int built_in = db_is_property_built_in(h);
                     if (!h.ptr) {
                         Var not_found = var_ref(propname);
                         PUSH_X_NOT_FOUND(E_PROPNF, not_found, var_ref(obj));
@@ -2030,15 +2004,11 @@ do_test:
 
             case OP_PUT_PROP:
             {
-                Var obj, propname, rhs;
-
-                rhs = POP();        /* any type */
-                propname = POP();   /* should be string */
-                obj = POP();        /* should be an object */
+                const Var rhs = POP();        /* any type */
+                const Var propname = POP();   /* should be string */
+                const Var obj = POP();        /* should be an object */
                 if (obj.type == TYPE_WAIF && propname.type == TYPE_STR) {
-                    enum error err;
-
-                    err = waif_put_prop(obj.v.waif, propname.v.str, rhs, RUN_ACTIV.progr);
+                    const auto err = waif_put_prop(obj.v.waif, propname.v.str, rhs, RUN_ACTIV.progr);
                     free_var(obj);
                     if (err == E_NONE) {
                         free_var(propname);
@@ -2064,13 +2034,11 @@ do_test:
                     free_var(obj);
                     PUSH_ERROR(E_INVIND);
                 } else {
-                    db_prop_handle h;
-                    int built_in;
                     enum error err = E_NONE;
-                    Objid progr = RUN_ACTIV.progr;
+                    const Objid progr = RUN_ACTIV.progr;
 
-                    h = db_find_property(obj, propname.v.str, nullptr);
-                    built_in = db_is_property_built_in(h);
+                    const db_prop_handle h = db_find_property(obj, propname.v.str, nullptr);
+                    const int built_in = db_is_property_built_in(h);
                     if (!h.ptr)
                         err = E_PROPNF;
                     else {
@@ -2155,27 +2123,22 @@ do_test:
             case OP_FORK:
             case OP_FORK_WITH_ID:
             {
-                Var time;
-                unsigned id = 0, f_index;
-                double when;
+                unsigned id = 0;
 
-                time = POP();
-                f_index = READ_BYTES(bv, bc.numbytes_fork);
+                const Var time = POP();
+                const int f_index = READ_BYTES(bv, bc.numbytes_fork);
                 if (op == OP_FORK_WITH_ID)
                     id = READ_BYTES(bv, bc.numbytes_var_name);
                 if (time.type != TYPE_INT && time.type != TYPE_FLOAT) {
-                    var_type time_type = time.type;
                     free_var(time);
-                    RAISE_TYPE_MISMATCH(2, time_type, TYPE_INT, TYPE_FLOAT);
+                    RAISE_TYPE_MISMATCH(2, time.type, TYPE_INT, TYPE_FLOAT);
                 }
-                when = time.type == TYPE_INT ? time.v.num : time.v.fnum;
+                const double when = time.type == TYPE_INT ? time.v.num : time.v.fnum;
                 free_var(time);
                 if (when < 0) {
                     RAISE_ERROR(E_INVARG);
                 } else {
-                    enum error e;
-
-                    e = enqueue_forked_task2(RUN_ACTIV, f_index, when,
+                    const auto e = enqueue_forked_task2(RUN_ACTIV, f_index, when,
                                              op == OP_FORK_WITH_ID ? id : -1);
                     if (e != E_NONE)
                         RAISE_ERROR(e);
@@ -2185,14 +2148,12 @@ do_test:
 
             case OP_CALL_VERB:
             {
-                enum error err;
-                Var args, verb, obj;
-                Objid _class;
+                const Var args = POP();   /* args, should be list */
+                Var verb = POP();   /* verbname, should be string */
+                const Var obj = POP();    /* could be anything */
 
-                args = POP();   /* args, should be list */
-                verb = POP();   /* verbname, should be string */
-                obj = POP();    /* could be anything */
-
+                enum error err = E_NONE;;
+                Objid _class = 0;
                 if (args.type != TYPE_LIST || verb.type != TYPE_STR)
                     err = E_TYPE;
                 else if (obj.type == TYPE_WAIF) {
@@ -2208,7 +2169,6 @@ do_test:
                     LOAD_STATE_VARIABLES();
                 } else {
                     Objid recv = NOTHING;
-                    db_prop_handle h;
                     Var p;
 
                     /* If it's an object, we're good.
@@ -2216,11 +2176,11 @@ do_test:
                      * object that points us to the prototype/handler
                      * for the primitive type.
                      */
-                    Var system = Var::new_obj(SYSTEM_OBJECT);
+                    const Var system = Var::new_obj(SYSTEM_OBJECT);
 
 #define         MATCH_TYPE(t1, t2)                      \
 else if (obj.type == TYPE_##t1) {           \
-    h = db_find_property(system, #t2 "_proto", &p); \
+    const db_prop_handle h = db_find_property(system, #t2 "_proto", &p); \
     if (h.ptr && p.type == TYPE_OBJ && valid(p.v.obj))  \
         recv = p.v.obj;                 \
 }
@@ -2294,19 +2254,14 @@ else if (obj.type == TYPE_##t1) {           \
 
             case OP_BI_FUNC_CALL:
             {
-                unsigned func_id;
-                Var args;
-
-                func_id = READ_BYTES(bv, 2);    /* 1 == numbytes of func_id */
-                args = POP();   /* should be list */
+                const unsigned func_id = READ_BYTES(bv, 2);    /* 1 == numbytes of func_id */
+                const Var args = POP();   /* should be list */
                 if (args.type != TYPE_LIST) {
                     free_var(args);
                     PUSH_ERROR(E_TYPE);
                 } else {
-                    package p;
-
                     STORE_STATE_VARIABLES();
-                    p = call_bi_func(func_id, args, 1, RUN_ACTIV.progr, nullptr);
+                    const package p = call_bi_func(func_id, args, 1, RUN_ACTIV.progr, nullptr);
                     LOAD_STATE_VARIABLES();
 
                     switch (p.kind) {
