@@ -1400,6 +1400,7 @@ do_test:
                 }
             }
             break;
+
             case OP_LT:
 {
                 const Var rhs = POP();
@@ -1513,12 +1514,10 @@ do_test:
                 const Var rhs = POP();    /* should be list or map */
                 const Var lhs = POP();    /* lhs, any type */
                 if (lhs.type == TYPE_STR && rhs.type == TYPE_STR) {
-                    const Var ans = Var::new_int(strindex(rhs.v.str, memo_strlen(rhs.v.str), lhs.v.str, memo_strlen(lhs.v.str), 0));
-                    PUSH(ans);
+                    PUSH(Var::new_int(strindex(rhs.v.str, memo_strlen(rhs.v.str), lhs.v.str, memo_strlen(lhs.v.str), 0)));
                     free_var(lhs);
                     free_var(rhs);
                 } else if (rhs.type != TYPE_LIST && rhs.type != TYPE_MAP) {
-                    const var_type rhs_type = rhs.type;
                     free_var(rhs);
                     free_var(lhs);
                     PUSH_TYPE_MISMATCH(2, rhs.type, TYPE_LIST, TYPE_MAP);
@@ -1544,6 +1543,7 @@ do_test:
                 PUSH(do_multiply(lhs, rhs));
                 break;
             }
+
             case OP_MINUS:
             {
                 const Var rhs = POP();
@@ -1557,6 +1557,7 @@ do_test:
                 PUSH(do_subtract(lhs, rhs));
                 break;
             }
+
             case OP_DIV:
             {
                 const Var rhs = POP();
@@ -1570,6 +1571,7 @@ do_test:
                 PUSH(do_divide(lhs, rhs));
                 break;
             }
+
             case OP_MOD:
             {
                 const Var rhs = POP();
@@ -1587,18 +1589,13 @@ do_test:
 
             case OP_ADD:
             {
-                Var rhs, lhs, ans;
-
-                rhs = POP();
-                lhs = POP();
-
-                var_type lhs_type = lhs.type;
-                var_type rhs_type = rhs.type;
-
-                if ((lhs_type == TYPE_INT || lhs_type == TYPE_FLOAT)
-                        && (rhs_type == TYPE_INT || rhs_type == TYPE_FLOAT))
+                const Var rhs = POP();
+                const Var lhs = POP();
+                Var ans;
+                if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT)
+                        && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT))
                     ans = do_add(lhs, rhs);
-                else if (lhs_type == TYPE_STR && rhs_type == TYPE_STR) {
+                else if (lhs.type == TYPE_STR && rhs.type == TYPE_STR) {
                     char *str;
                     int llen = memo_strlen(lhs.v.str);
                     int flen = llen + memo_strlen(rhs.v.str);
@@ -1613,8 +1610,8 @@ do_test:
                         ans.type = TYPE_STR;
                         ans.v.str = str;
                     }
-                } else if (lhs_type == TYPE_LIST) {
-                    if (rhs_type == TYPE_LIST) {
+                } else if (lhs.type == TYPE_LIST) {
+                    if (rhs.type == TYPE_LIST) {
                         ans = listconcat(var_ref(lhs), var_ref(rhs));
                     } else {
                         ans = listappend(var_ref(lhs), var_ref(rhs));
@@ -1626,19 +1623,19 @@ do_test:
                 free_var(rhs);
                 free_var(lhs);
 
-                if (ans.type == TYPE_ERR) {
+                if (ans.is_error()) {
                     /* This is maybe slightly unwieldy, but it works. It assumes lhs is the type you really wanted. */
                     if (ans.v.err == E_TYPE) {
-                        if (lhs_type == TYPE_STR)
-                            PUSH_TYPE_MISMATCH(1, lhs_type != TYPE_STR ? lhs_type : rhs_type, TYPE_STR);
-                        else if (rhs_type == TYPE_STR && lhs_type != TYPE_INT && lhs_type != TYPE_FLOAT)
-                            PUSH_TYPE_MISMATCH(1, lhs_type, TYPE_STR);
-                        else if (lhs_type == TYPE_INT)
-                            PUSH_TYPE_MISMATCH(1, rhs_type, TYPE_INT);
-                        else if (lhs_type == TYPE_FLOAT)
-                            PUSH_TYPE_MISMATCH(1, rhs_type, TYPE_FLOAT);
-                        else if (lhs_type != TYPE_INT && lhs_type != TYPE_FLOAT && (rhs_type == TYPE_INT || rhs_type == TYPE_FLOAT))
-                            PUSH_TYPE_MISMATCH(1, lhs_type, rhs.type);
+                        if (lhs.type == TYPE_STR)
+                            PUSH_TYPE_MISMATCH(1, lhs.type != TYPE_STR ? lhs.type : rhs.type, TYPE_STR);
+                        else if (rhs.type == TYPE_STR && lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT)
+                            PUSH_TYPE_MISMATCH(1, lhs.type, TYPE_STR);
+                        else if (lhs.type == TYPE_INT)
+                            PUSH_TYPE_MISMATCH(1, rhs.type, TYPE_INT);
+                        else if (lhs.type == TYPE_FLOAT)
+                            PUSH_TYPE_MISMATCH(1, rhs.type, TYPE_FLOAT);
+                        else if (lhs.type != TYPE_INT && lhs.type != TYPE_FLOAT && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT))
+                            PUSH_TYPE_MISMATCH(1, lhs.type, rhs.type);
                         else
                             PUSH_TYPE_MISMATCH(3, lhs.type, TYPE_INT, TYPE_FLOAT, TYPE_STR);
                     } else {
