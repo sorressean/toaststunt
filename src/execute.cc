@@ -1650,10 +1650,8 @@ do_test:
             case OP_AND:
             case OP_OR:
             {
-                Var lhs;
-                unsigned lab = READ_BYTES(bv, bc.numbytes_label);
-
-                lhs = TOP_RT_VALUE;
+                const unsigned lab = READ_BYTES(bv, bc.numbytes_label);
+                const Var lhs = TOP_RT_VALUE;
                 if ((op == OP_AND && !is_true(lhs))
                         || (op == OP_OR && is_true(lhs)))   /* short-circuit */
                     JUMP(lab);
