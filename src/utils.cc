@@ -443,14 +443,18 @@ compare(const Var &lhs, const Var &rhs, const int case_matters)
 int
 equality(const Var& lhs, const Var& rhs, const int case_matters)
 {
+    if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT) && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT))
+    {
+        const auto left = (lhs.type == TYPE_INT? lhs.v.num : lhs.v.fnum);
+        const auto right = (rhs.type == TYPE_INT? rhs.v.num : rhs.v.fnum);
+        return left == right;
+    }
     if (lhs.type == rhs.type) {
         switch (lhs.type) {
             case TYPE_CLEAR:
                 return 1;
             case TYPE_NONE:
                 return 1;
-            case TYPE_INT:
-                return lhs.v.num == rhs.v.num;
             case TYPE_OBJ:
                 return lhs.v.obj == rhs.v.obj;
             case TYPE_ERR:
@@ -466,8 +470,6 @@ equality(const Var& lhs, const Var& rhs, const int case_matters)
                     return !strcmp(lhs.v.str, rhs.v.str);
                 else
                     return !strcasecmp(lhs.v.str, rhs.v.str);
-            case TYPE_FLOAT:
-                return lhs.v.fnum == rhs.v.fnum;
             case TYPE_LIST:
                 return listequal(lhs, rhs, case_matters);
             case TYPE_MAP:
