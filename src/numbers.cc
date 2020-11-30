@@ -208,7 +208,7 @@ do_equals(Var lhs, Var rhs)
 }
 
 int
-compare_integers(Num a, Num b)
+compare_integers(const Num a, const Num b)
 {
     if (a < b)
         return -1;
@@ -219,32 +219,26 @@ compare_integers(Num a, Num b)
 }
 
 Var
-compare_numbers(Var a, Var b)
+compare_numbers(const Var& a, const Var& b)
 {
-    Var ans;
-
-    if (a.type != b.type) {
-        ans.type = TYPE_ERR;
-        ans.v.err = E_TYPE;
-    } else if (a.type == TYPE_INT) {
-        ans.type = TYPE_INT;
-        if (a.v.num < b.v.num)
-            ans.v.num = -1;
-        else if (a.v.num > b.v.num)
-            ans.v.num = 1;
-        else
-            ans.v.num = 0;
-    } else {
-        ans.type = TYPE_INT;
-        if (a.v.fnum < b.v.fnum)
-            ans.v.num = -1;
-        else if (a.v.fnum > b.v.fnum)
-            ans.v.num = 1;
-        else
-            ans.v.num = 0;
+    if ((a.type != TYPE_INT && a.type != TYPE_FLOAT) || (b.type != TYPE_INT && b.type != TYPE_FLOAT))
+    {
+        return Var::new_error(E_TYPE);
     }
-
-    return ans;
+    const auto left = (a.type == TYPE_INT? a.v.num : a.v.fnum);
+    const auto right = (b.type == TYPE_INT? b.v.num : b.v.fnum);
+    if (left < right)
+    {
+        return Var::new_int(-1);
+    }
+    else if (left > right)
+    {
+        return Var::new_int(1);
+    }
+    else
+    {
+        return Var::new_int(0);
+    }
 }
 
 Var do_add(const Var& a, const Var& b)

@@ -22,8 +22,8 @@ extern int parse_number(const char *str, Num *result, int try_floating_point);
 extern enum error become_integer(Var, Num *, int);
 
 extern int do_equals(Var, Var);
-extern int compare_integers(Num, Num);
-extern Var compare_numbers(Var, Var);
+extern int compare_integers(const Num a, const Num b);
+extern Var compare_numbers(const Var& a, const Var& b);
 
 extern Var do_add(const Var& a, const Var& b);
 extern Var do_subtract(const Var& a, const Var& b);

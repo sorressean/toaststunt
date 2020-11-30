@@ -1293,34 +1293,39 @@ do_test:
             break;
 
             case OP_GT:
-            case OP_LT:
-            case OP_GE:
-            case OP_LE:
             {
-                int comparison = 0;
-Var ans;
                 const Var rhs = POP();
                 const Var lhs = POP();
-                if ((lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT)
-                        && (rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT)) {
-                    ans = compare_numbers(lhs, rhs);
-                    if (ans.type == TYPE_ERR) {
-                        free_var(rhs);
-                        free_var(lhs);
-                        PUSH_ERROR(ans.v.err);
-                    } else {
-                        comparison = ans.v.num;
-                        goto finish_comparison;
+                //this feels messy, but putting it in the switch statement more-so.
+                //we would need a way to break out of the switch statement and this case statement, which smells like a goto.
+                if ((rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT) && (lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT))
+                {
+                    const Var result = compare_numbers(lhs, rhs);
+                    free_var(rhs);
+                    free_var(lhs);
+                    if (result.is_error())
+                    {
+                        PUSH_ERROR(result.v.err);
+                        break;
                     }
-                } else if (rhs.type != lhs.type || rhs.type == TYPE_LIST || rhs.type == TYPE_MAP) {
+                    else
+                    {
+                        PUSH(Var::new_int(result.v.num > 0));
+                        break;
+                    }
+                }
+                if (rhs.type != lhs.type || rhs.type == TYPE_LIST || rhs.type == TYPE_MAP)
+                {
                     free_var(rhs);
                     free_var(lhs);
                     PUSH_TYPE_MISMATCH(1, rhs.type, lhs.type);
-                } else {
-                    switch (rhs.type) {
+                }
+                else
+                {
+                    int comparison = 0;
+                    switch (rhs.type)
+                    {
                         case TYPE_INT:
-                            comparison = compare_integers(lhs.v.num, rhs.v.num);
-                            break;
                         case TYPE_OBJ:
                             comparison = compare_integers(lhs.v.obj, rhs.v.obj);
                             break;
@@ -1335,29 +1340,170 @@ Var ans;
                                    rhs.type);
                             comparison = 0;
                     }
+                free_var(lhs);
+                free_var(rhs);
+                PUSH(Var::new_int(comparison > 0));
+                }
+            }
+            break;
 
-finish_comparison:
-                    ans.type = TYPE_INT;
-                    switch (op) {
-                        case OP_LT:
-                            ans.v.num = (comparison < 0);
-                            break;
-                        case OP_LE:
-                            ans.v.num = (comparison <= 0);
-                            break;
-                        case OP_GT:
-                            ans.v.num = (comparison > 0);
-                            break;
-                        case OP_GE:
-                            ans.v.num = (comparison >= 0);
-                            break;
-                        default:
-                            errlog("RUN: Imposible opcode in comparison: %d\n", op);
-                            break;
-                    }
-                    PUSH(ans);
+            case OP_GE:
+{
+                const Var rhs = POP();
+                const Var lhs = POP();
+                //this feels messy, but putting it in the switch statement more-so.
+                //we would need a way to break out of the switch statement and this case statement, which smells like a goto.
+                if ((rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT) && (lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT))
+                {
+                    const Var result = compare_numbers(lhs, rhs);
                     free_var(rhs);
                     free_var(lhs);
+                    if (result.is_error())
+                    {
+                        PUSH_ERROR(result.v.err);
+                        break;
+                    }
+                    else
+                    {
+                        PUSH(Var::new_int(result.v.num >= 0));
+                        break;
+                    }
+                }
+                if (rhs.type != lhs.type || rhs.type == TYPE_LIST || rhs.type == TYPE_MAP)
+                {
+                    free_var(rhs);
+                    free_var(lhs);
+                    PUSH_TYPE_MISMATCH(1, rhs.type, lhs.type);
+                }
+                else
+                {
+                    int comparison = 0;
+                    switch (rhs.type)
+                    {
+                        case TYPE_OBJ:
+                            comparison = compare_integers(lhs.v.obj, rhs.v.obj);
+                            break;
+                        case TYPE_ERR:
+                            comparison = ((int) lhs.v.err) - ((int) rhs.v.err);
+                            break;
+                        case TYPE_STR:
+                            comparison = strcasecmp(lhs.v.str, rhs.v.str);
+                            break;
+                        default:
+                            errlog("RUN: Impossible type in comparison: %d\n",
+                                   rhs.type);
+                            comparison = 0;
+                    }
+                free_var(lhs);
+                free_var(rhs);
+                PUSH(Var::new_int(comparison >= 0));
+                }
+            }
+            break;
+            case OP_LT:
+{
+                const Var rhs = POP();
+                const Var lhs = POP();
+                //this feels messy, but putting it in the switch statement more-so.
+                //we would need a way to break out of the switch statement and this case statement, which smells like a goto.
+                if ((rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT) && (lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT))
+                {
+                    const Var result = compare_numbers(lhs, rhs);
+                    free_var(rhs);
+                    free_var(lhs);
+                    if (result.is_error())
+                    {
+                        PUSH_ERROR(result.v.err);
+                        break;
+                    }
+                    else
+                    {
+                        PUSH(Var::new_int(result.v.num < 0));
+                        break;
+                    }
+                }
+                if (rhs.type != lhs.type || rhs.type == TYPE_LIST || rhs.type == TYPE_MAP)
+                {
+                    free_var(rhs);
+                    free_var(lhs);
+                    PUSH_TYPE_MISMATCH(1, rhs.type, lhs.type);
+                }
+                else
+                {
+                    int comparison = 0;
+                    switch (rhs.type)
+                    {
+                        case TYPE_OBJ:
+                            comparison = compare_integers(lhs.v.obj, rhs.v.obj);
+                            break;
+                        case TYPE_ERR:
+                            comparison = ((int) lhs.v.err) - ((int) rhs.v.err);
+                            break;
+                        case TYPE_STR:
+                            comparison = strcasecmp(lhs.v.str, rhs.v.str);
+                            break;
+                        default:
+                            errlog("RUN: Impossible type in comparison: %d\n",
+                                   rhs.type);
+                            comparison = 0;
+                    }
+                free_var(lhs);
+                free_var(rhs);
+                PUSH(Var::new_int(comparison < 0));
+                }
+            }
+            break;
+
+            case OP_LE:
+{
+                const Var rhs = POP();
+                const Var lhs = POP();
+                //this feels messy, but putting it in the switch statement more-so.
+                //we would need a way to break out of the switch statement and this case statement, which smells like a goto.
+                if ((rhs.type == TYPE_INT || rhs.type == TYPE_FLOAT) && (lhs.type == TYPE_INT || lhs.type == TYPE_FLOAT))
+                {
+                    const Var result = compare_numbers(lhs, rhs);
+                    free_var(rhs);
+                    free_var(lhs);
+                    if (result.is_error())
+                    {
+                        PUSH_ERROR(result.v.err);
+                        break;
+                    }
+                    else
+                    {
+                        PUSH(Var::new_int(result.v.num <= 0));
+                        break;
+                    }
+                }
+                if (rhs.type != lhs.type || rhs.type == TYPE_LIST || rhs.type == TYPE_MAP)
+                {
+                    free_var(rhs);
+                    free_var(lhs);
+                    PUSH_TYPE_MISMATCH(1, rhs.type, lhs.type);
+                }
+                else
+                {
+                    int comparison = 0;
+                    switch (rhs.type)
+                    {
+                        case TYPE_OBJ:
+                            comparison = compare_integers(lhs.v.obj, rhs.v.obj);
+                            break;
+                        case TYPE_ERR:
+                            comparison = ((int) lhs.v.err) - ((int) rhs.v.err);
+                            break;
+                        case TYPE_STR:
+                            comparison = strcasecmp(lhs.v.str, rhs.v.str);
+                            break;
+                        default:
+                            errlog("RUN: Impossible type in comparison: %d\n",
+                                   rhs.type);
+                            comparison = 0;
+                    }
+                free_var(lhs);
+                free_var(rhs);
+                PUSH(Var::new_int(comparison <= 0));
                 }
             }
             break;

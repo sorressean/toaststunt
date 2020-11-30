@@ -201,6 +201,10 @@ typedef struct Waif {
 	return TYPE_INT == type;
     }
 
+bool is_error() const {
+return TYPE_ERR == type;
+}
+
     static Var new_error(const error err)
     {
         Var r;
