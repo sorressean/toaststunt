@@ -28,7 +28,7 @@
 #include <sys/sysctl.h>
 #endif
 
-#include "my-math.h"
+#include <cmath>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -48,6 +48,12 @@ sosemanuk_key_context key_context;
 sosemanuk_run_context run_context;
 
 static std::mt19937 rng;
+
+inline static bool
+IS_REAL(const float x)
+{
+    return (-DBL_MAX <= (x) && (x) <= DBL_MAX);
+}
 
 void reseed_rng()
 {

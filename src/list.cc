@@ -23,7 +23,8 @@
 
 #include <ctype.h>
 #include <string.h>
-#include "my-math.h"
+#include <cmath>
+#include <cfloat>
 
 #include "bf_register.h"
 #include "collection.h"
