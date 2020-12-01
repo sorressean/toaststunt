@@ -3277,7 +3277,7 @@ resume_from_previous_vm(vm the_vm, Var v)
 /*** external functions ***/
 
 enum outcome
-do_server_verb_task(Var _this, const char *verb, Var args, db_verb_handle h,
+do_server_verb_task(const Var& _this, const char *verb, const Var& args, db_verb_handle h,
                     Objid player, const char *argstr, Var *result,
                     int do_db_tracebacks)
 {
@@ -3288,7 +3288,7 @@ do_server_verb_task(Var _this, const char *verb, Var args, db_verb_handle h,
 }
 
 enum outcome
-do_server_program_task(Var _this, const char *verb, Var args, Var vloc,
+do_server_program_task(const Var& _this, const char *verb, const Var& args, const Var& vloc,
                        const char *verbname, Program * program, Objid progr,
                        int debug, Objid player, const char *argstr,
                        Var * result, int do_db_tracebacks)
