@@ -18,6 +18,9 @@
 #include "sosemanuk.h"
 #include "structures.h"
 
+extern bool
+IS_REAL(const float x);
+
 extern int parse_number(const char *str, Num *result, int try_floating_point);
 extern enum error become_integer(Var, Num *, int);
 

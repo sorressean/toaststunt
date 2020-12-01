@@ -22,7 +22,7 @@
 /*************************************************************************/
 
 #include <ctype.h>
-#include "my-math.h"
+#include <cmath>
 #include <stdlib.h>
 #include <string.h>
 #include <functional>

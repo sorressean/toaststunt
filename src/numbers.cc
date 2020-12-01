@@ -49,7 +49,7 @@ sosemanuk_run_context run_context;
 
 static std::mt19937 rng;
 
-inline static bool
+bool
 IS_REAL(const float x)
 {
     return (-DBL_MAX <= (x) && (x) <= DBL_MAX);
