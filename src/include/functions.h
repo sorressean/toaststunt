@@ -86,7 +86,7 @@ extern void register_function_with_read_write(const char *, int, int,
 						  bf_type, bf_read_type,
 						  bf_write_type,...);
 
-extern package call_bi_func(unsigned, Var, Byte, Objid, void *);
+extern package call_bi_func(unsigned, const Var&, Byte, Objid, void *);
 /* will free or use Var arglist */
 
 extern void write_bi_func_data(void *vdata, Byte f_id);

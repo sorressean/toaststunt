@@ -639,14 +639,14 @@ free_activation(activation * ap, char data_too)
 /** Set up another activation for calling a verb
   does not change the vm in case of any error **/
 
-enum error call_verb2(Objid recv, const char *vname, Var _this, Var args, int do_pass);
+enum error call_verb2(Objid recv, const char *vname, const Var& _this, const Var& args, int do_pass);
 
 /*
  * Historical interface for things which want to call with vname not
  * already in a moo-str.
  */
 enum error
-call_verb(Objid recv, const char *vname_in, Var _this, Var args, int do_pass)
+call_verb(Objid recv, const char *vname_in, const Var& _this, const Var& args, int do_pass)
 {
     const char *vname = str_dup(vname_in);
     enum error result;
@@ -658,7 +658,7 @@ call_verb(Objid recv, const char *vname_in, Var _this, Var args, int do_pass)
 }
 
 enum error
-call_verb2(Objid recv, const char *vname, Var _this, Var args, int do_pass, bool should_thread)
+call_verb2(Objid recv, const char *vname, const Var& _this, const Var& args, int do_pass, bool should_thread)
 {
     /* if call succeeds, args will be consumed.  If call fails, args
        will NOT be consumed  -- it must therefore be freed by caller */
