@@ -4,12 +4,14 @@
 ### Bug Fixes
 - Fix a memory leak in `open_network_connection()` that occurred after a successful connection.
 - Fix a bug where the SERVER FULL message wouldn't display the connection name properly.
+- Fix a bug where a waif could refer to itself in a map. It now correctly returns E_RECMOVE. The server will also now validate waifs at startup to ensure there are no self-referential waifs. If one is found, it's invalidated.
 
 ### New Features
 - Support TLS / SSL connections in both `listen()` and `open_network_connection()`. Certificate and key must be configured properly in options.h. See warnings at the end of this changelog for important information about these changes.
 - Add a command line switch (`+t`) to enable TLS on default listening ports.
+- MAX_QUEUED_OUTPUT can be overridden in-database by adding the property `$server_options.max_queued_output` and calling `load_server_options()`.
 
-*** COMPATIBILITY WARNINGS ***
+### *** COMPATIBILITY WARNINGS ***
 - The arguments for `listen()` have changed! Listen now accepts an optional third argument as a map. This map takes over the previous arguments and has the keys: ipv6, tls, certificate, key, print-messages. So if you wanted everything, you would use: `listen(#0, 1234, ["ipv6" -> 1, "tls" -> 1, "certificate" -> "/etc/certs/something.pem", "key" -> "/etc/certs/privkey.pem", "print-messages" -> 1]`
 - The arguments for `open_network_connection()` have changed! All previous optional arguments have been folded into a single optional third MAP argument. It accepts the keys: ipv6, listener, tls. So if you wanted to open a TLS connection to an IPv6 address using #6 as the listener, you would do: `open_network_connection("2607:5300:60:4be0::", 1234, ["ipv6" -> 1, "listener" -> #6, "tls" -> 1])`
 

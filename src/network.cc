@@ -101,6 +101,7 @@ typedef struct nhandle {
 #ifdef USE_TLS
     SSL *tls;                               // TLS context; not TLS if null
     bool connected;
+    bool want_write;
 #endif
 } nhandle;
 
@@ -251,45 +252,69 @@ network_set_nonblocking(int fd)
 }
 
 static int
+push_network_buffer_overflow(nhandle *h)
+{
+    int count;
+    char buf[100];
+    int length;
+
+    sprintf(buf,
+            "%s>> Network buffer overflow: %u line%s of output to you %s been lost <<%s",
+            proto.eol_out_string,
+            h->output_lines_flushed,
+            h->output_lines_flushed == 1 ? "" : "s",
+            h->output_lines_flushed == 1 ? "has" : "have", proto.eol_out_string);
+    length = strlen(buf);
+    
+#ifdef USE_TLS
+    if (h->tls)
+        count = SSL_write(h->tls, buf, length);
+    else
+#endif
+        count = write(h->wfd, buf, length);
+
+    if (count == length) {
+        h->output_lines_flushed = 0;
+        return 1;
+    }
+
+#ifdef USE_TLS
+    if (h->tls)
+    {
+        int error = SSL_get_error(h->tls, count);
+        if (error == SSL_ERROR_WANT_WRITE || error == SSL_ERROR_WANT_READ || errno == eagain || errno == ewouldblock)
+            h->want_write = true;
+        else
+            errlog("TLS: Error pushing output (error %i) (errno %i) from %s: %s\n", error, errno, h->name, ERR_error_string(ERR_get_error(), nullptr));
+        ERR_clear_error();
+        return count > 0 || error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE || errno == eagain || errno == ewouldblock;
+    }
+#endif
+
+    return count >= 0 || errno == eagain || errno == ewouldblock;
+}
+
+static int
 push_output(nhandle * h)
 {
 #ifdef USE_TLS
     if (h->tls && !h->connected)
         return 1;
 #endif
+
     text_block *b;
     int count;
 
-    if (h->output_lines_flushed > 0) {
-        char buf[100];
-        int length;
+    if (h->output_lines_flushed > 0)
+#ifdef USE_TLS
+        /* If this is a TLS connection, we want to skip printing the overflow message for now.
+           This is because SSL_write() demands the same data as before when an SSL_ERROR_WANT_WRITE occurs.
+           So before we can print the overflow, we have to resend the old data. */
+        if (!h->tls)
+#endif
+            if (!push_network_buffer_overflow(h))
+                return 0;
 
-        sprintf(buf,
-                "%s>> Network buffer overflow: %u line%s of output to you %s been lost <<%s",
-                proto.eol_out_string,
-                h->output_lines_flushed,
-                h->output_lines_flushed == 1 ? "" : "s",
-                h->output_lines_flushed == 1 ? "has" : "have", proto.eol_out_string);
-        length = strlen(buf);
-#ifdef USE_TLS
-        if (h->tls)
-            count = SSL_write(h->tls, buf, length);
-        else
-#endif
-            count = write(h->wfd, buf, length);
-        if (count == length)
-            h->output_lines_flushed = 0;
-        else
-#ifdef USE_TLS
-        {
-            int error = SSL_get_error(h->tls, count);
-            errlog("TLS: Error pushing output (%i) from %s: %s\n", error, h->name, ERR_error_string(ERR_get_error(), nullptr));
-            return count > 0 || error == SSL_ERROR_SYSCALL;
-        }
-#else
-            return count >= 0 || errno == eagain || errno == ewouldblock;
-#endif
-    }
     while ((b = h->output_head) != nullptr) {
 #ifdef USE_TLS
         if (h->tls)
@@ -301,16 +326,18 @@ push_output(nhandle * h)
         if (count <= 0) {
             if (h->tls) {
                 int error = SSL_get_error(h->tls, count);
-                if (error == SSL_ERROR_SYSCALL)
-                    return 1;
+                if (error == SSL_ERROR_WANT_WRITE || error == SSL_ERROR_WANT_READ || errno == eagain || errno == ewouldblock)
+                    h->want_write = true;
                 else
-                    errlog("TLS: Error pushing output (%i) from %s: %s\n", error, h->name, ERR_error_string(ERR_get_error(), nullptr));
+                    errlog("TLS: Error pushing output (error %i) (errno %i) from %s: %s\n", error, errno, h->name, ERR_error_string(ERR_get_error(), nullptr));
+                ERR_clear_error();
+                return (error == SSL_ERROR_WANT_READ || error == SSL_ERROR_WANT_WRITE || errno == eagain || errno == ewouldblock);
             }
 #else
         if (count < 0) {
 #endif
             return (errno == eagain || errno == ewouldblock);
-        }
+        } // end of count checks
         h->output_length -= count;
         if (count == b->length) {
             h->output_head = b->next;
@@ -319,7 +346,16 @@ push_output(nhandle * h)
             b->start += count;
             b->length -= count;
         }
-    }
+
+#ifdef USE_TLS
+        if (h->want_write) {
+            h->want_write = false;
+            if (h->output_lines_flushed > 0 && !push_network_buffer_overflow(h))
+                break;
+        }
+#endif
+    } // endwhile
+
     if (h->output_head == nullptr)
         h->output_tail = &(h->output_head);
     return 1;
@@ -353,11 +389,14 @@ pull_input(nhandle * h)
         if (!h->connected) {
             int tls_success = SSL_accept(h->tls);
             error = SSL_get_error(h->tls, tls_success);
+            ERR_clear_error();
             switch (error) {
                 case SSL_ERROR_WANT_READ:
                 case SSL_ERROR_WANT_WRITE:
-                case SSL_ERROR_SYSCALL:
                     return 1;
+                    break;
+                case SSL_ERROR_SYSCALL:
+                    return 0;
                     break;
                 case SSL_ERROR_NONE:
                     h->connected = true;
@@ -375,10 +414,20 @@ pull_input(nhandle * h)
 
             if (count <= 0) {
                 error = SSL_get_error(h->tls, count);
-                if (error == SSL_ERROR_WANT_READ || SSL_ERROR_SYSCALL)
-                    return 1;
-                else
-                    errlog("TLS: Error pulling input (%i) from %s: %s\n", error, h->name, ERR_error_string(ERR_get_error(), nullptr));
+                ERR_clear_error();
+                switch (error) {
+                    case SSL_ERROR_WANT_READ:
+                    case SSL_ERROR_WANT_WRITE:
+                    case SSL_ERROR_SSL:
+                        return 1;
+                        break;
+                    case SSL_ERROR_SYSCALL:
+                        return 0;
+                        break;
+                    default:
+                        errlog("TLS: Error pulling input (%i) from %s: %s\n", error, h->name, ERR_error_string(ERR_get_error(), nullptr));
+                        return 0;
+                }
             }
         }
     } else
@@ -492,6 +541,7 @@ new_nhandle(const int rfd, const int wfd, const bool outbound, uint16_t listen_p
 #ifdef USE_TLS
     h->tls = tls;
     h->connected = false;
+    h->want_write = false;
 #endif
 
     return h;
@@ -674,12 +724,14 @@ network_accept_connection(int listener_fd, int *read_fd, int *write_fd,
                     SSL_get_error(*tls, tls_success);
                     errlog("TLS: Error loading certificate (%s) from argument: %s\n", certificate_path, ERR_error_string(ERR_get_error(), nullptr));
                     cert_success = false;
+                    ERR_clear_error();
                 }
             if (cert_success && key_path != nullptr)
                 if ((tls_success = SSL_use_PrivateKey_file(*tls, key_path, SSL_FILETYPE_PEM)) <= 0) {
                     SSL_get_error(*tls, tls_success);
                     errlog("TLS: Error loading private key (%s) from argument: %s\n", key_path, ERR_error_string(ERR_get_error(), nullptr));
                     cert_success = false;
+                    ERR_clear_error();
                 }
             if (cert_success && certificate_path != nullptr && key_path != nullptr && !SSL_check_private_key(*tls)) {
                 errlog("TLS: Private key (%s) does not match certificate (%s)!\n", key_path, certificate_path);
@@ -990,6 +1042,7 @@ open_connection(Var arglist, int *read_fd, int *write_fd,
                     errlog("TLS: Connect failed: %s\n", ERR_error_string(ERR_get_error(), nullptr));
                     result = -1;
                     errno = TLS_CONNECT_FAIL;
+                    ERR_clear_error();
                 } else {
 #ifdef LOG_TLS_CONNECTIONS
                     oklog("TLS: %s. Cipher: %s\n", SSL_state_string_long(*tls), SSL_get_cipher(*tls));
@@ -1170,6 +1223,7 @@ network_initialize(int argc, char **argv, Var * desc)
         }
 
         SSL_CTX_set_session_id_context(tls_ctx, (const unsigned char*)"ToastStunt", 10);
+        SSL_CTX_set_mode(tls_ctx, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_RELEASE_BUFFERS);
 
 #ifdef VERIFY_TLS_PEERS
         if (!SSL_CTX_set_default_verify_paths(tls_ctx))
@@ -1241,25 +1295,49 @@ enqueue_output(network_handle nh, const char *line, int line_length, int add_eol
     int length = line_length + (add_eol ? eol_length : 0);
     char *buffer;
     text_block *block;
+    bool move_output_head = true;
+    /* If SSL_ERROR_WANT_WRITE, we need to preserve the first output_head. This flag indicates that the while loop below won't
+       change the output head and will instead move 'next' around. */
 
-    if (h->output_length != 0 && h->output_length + length > MAX_QUEUED_OUTPUT) {   /* must flush... */
+    if (h->output_length != 0 && h->output_length + length > server_flag_option_cached(SVO_MAX_QUEUED_OUTPUT)) {   /* must flush... */
         int to_flush;
-        text_block *b;
+        text_block *b, *next;
 
         (void)push_output(h);
-        to_flush = h->output_length + length - MAX_QUEUED_OUTPUT;
+        to_flush = h->output_length + length - server_flag_option_cached(SVO_MAX_QUEUED_OUTPUT);
         if (to_flush > 0 && !flush_ok)
             return 0;
-        while (to_flush > 0 && (b = h->output_head)) {
+
+        next = h->output_head;
+#ifdef USE_TLS
+        if (h->want_write) {
+            if (h->output_head->next == nullptr) {
+                /* Not much we can do here. OpenSSL expects the exact same data as before,
+                   so output_head must remain intact. But we have nothing else to flush... */
+                return 1;
+            }
+            next = h->output_head->next;
+            move_output_head = false;
+        }
+#endif
+        while (to_flush > 0 && (b = next)) {
             h->output_length -= b->length;
             to_flush -= b->length;
             h->output_lines_flushed++;
-            h->output_head = b->next;
+            next = b->next;
+            if (move_output_head)
+                h->output_head = next;
+            else {
+                h->output_head->next = next;
+            }
             free_text_block(b);
         }
         if (h->output_head == nullptr)
             h->output_tail = &(h->output_head);
+        else if (h->output_head->next == nullptr)
+            h->output_tail = &(h->output_head->next);
     }
+
     buffer = (char *)mymalloc(length * sizeof(char), M_NETWORK);
     block = (text_block *) mymalloc(sizeof(text_block), M_NETWORK);
     memcpy(buffer, line, line_length);
@@ -1326,7 +1404,7 @@ network_process_io(int timeout)
         {
             mplex_add_reader(h->rfd);
 #ifdef USE_TLS
-            if (h->tls && SSL_pending(h->tls))
+            if (h->tls && SSL_has_pending(h->tls))
                 pending_tls = true;
 #endif
         }
@@ -1587,12 +1665,14 @@ tls_connection_info(const network_handle nh)
 {
     static Var cyphersuite_key_name = str_dup_to_var("cyphersuite");
     static Var active_key_name = str_dup_to_var("active");
+    static Var tls_version = str_dup_to_var("version");
     const nhandle *h = (nhandle *)nh.ptr;
     Var ret = new_map();
 
     ret = mapinsert(ret, var_ref(active_key_name), Var::new_int(h->tls != nullptr));
     if (h->tls) {
         ret = mapinsert(ret, var_ref(cyphersuite_key_name), str_dup_to_var(SSL_get_cipher(h->tls)));
+        ret = mapinsert(ret, var_ref(tls_version), str_dup_to_var(SSL_get_version(h->tls)));
     }
 
     return ret;

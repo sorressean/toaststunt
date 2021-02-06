@@ -1126,11 +1126,8 @@ bf_occupants(Var arglist, Byte next, void *vdata, Objid progr)
     }
 
     for (int x = 1; x <= content_length; x++) {
-        const Var element = contents.v.list[x];
-
-        const Objid oid = (element.type == TYPE_OBJ? element.v.obj : element.v.waif->_class);
-        if (valid(oid)
-                && (!check_parent ? 1 : multi_parent_isa(&contents.v.list[x], &parent))
+const Objid oid = contents.v.list[x].v.obj;
+        if ((!check_parent ? 1 : multi_parent_isa(&contents.v.list[x], &parent))
                 && (!check_player_flag || (check_player_flag && is_user(oid))))
         {
             ret = setadd(ret, (element.type == TYPE_WAIF ? var_ref(element) : element));
