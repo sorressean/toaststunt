@@ -1130,7 +1130,7 @@ const Objid oid = contents.v.list[x].v.obj;
         if ((!check_parent ? 1 : multi_parent_isa(&contents.v.list[x], &parent))
                 && (!check_player_flag || (check_player_flag && is_user(oid))))
         {
-            ret = setadd(ret, (element.type == TYPE_WAIF ? var_ref(element) : element));
+            ret = setadd(ret, contents.v.list[x]);
         }
     }
 
