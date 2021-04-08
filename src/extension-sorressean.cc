@@ -35,6 +35,7 @@
 using namespace std;
 using namespace boost::accumulators;
 
+typedef int (*IsCharCallback)(int c);
 static Var
 list_assoc(Var& vtarget, Var& vlist, const int vindex)
 {
@@ -879,6 +880,66 @@ bf_vec3_length(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(Var::new_float(length));
 }
 
+static int FilterCharactersWithCallback(const Var& string, IsCharCallback callback)
+{
+    const auto length = memo_strlen(string.v.str);
+    if (length == 0)
+        {
+            return 0;
+        }
+
+    const char* stringData = string.v.str;
+    for (int i = 0; i < length; ++i)
+        {
+            if (!callback(stringData[i]))
+                {
+                    return 0;
+                }
+        }
+
+    return 1;
+}
+
+static package
+bf_isalnum(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto result = FilterCharactersWithCallback(arglist.v.list[1], isalnum);
+    free_var(arglist);
+    return make_var_pack(Var::new_int(result));
+}
+
+static package
+bf_isalpha(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto result = FilterCharactersWithCallback(arglist.v.list[1], isalpha);
+    free_var(arglist);
+    return make_var_pack(Var::new_int(result));
+}
+
+static package
+bf_isdigit(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto result = FilterCharactersWithCallback(arglist.v.list[1], isdigit);
+    free_var(arglist);
+    return make_var_pack(Var::new_int(result));
+}
+
+static package
+bf_isprint(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto result = FilterCharactersWithCallback(arglist.v.list[1], isprint);
+    free_var(arglist);
+    return make_var_pack(Var::new_int(result));
+}
+
+static package
+bf_ispunct(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto result = FilterCharactersWithCallback(arglist.v.list[1], ispunct);
+    free_var(arglist);
+    return make_var_pack(Var::new_int(result));
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -911,4 +972,9 @@ void register_sorressean_extensions()
     register_function("vector3_div", 2, 2, bf_vec3_div, TYPE_LIST, TYPE_LIST);
     register_function("vector3_dot", 2, 2, bf_vec3_dot, TYPE_LIST, TYPE_LIST);
     register_function("vector3_length", 1, 1, bf_vec3_length, TYPE_LIST);
+    register_function("isalnum", 1, 1, bf_isalnum, TYPE_STR);
+    register_function("isalpha", 1, 1, bf_isalpha, TYPE_STR);
+    register_function("isdigit", 1, 1, bf_isdigit, TYPE_STR);
+    register_function("isprint", 1, 1, bf_isprint, TYPE_STR);
+    register_function("ispunct", 1, 1, bf_ispunct, TYPE_STR);
 }
