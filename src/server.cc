@@ -83,10 +83,12 @@ extern "C" {
 
 #define RANDOM_DEVICE "/dev/random"
 
+using namespace std;
+
 static pid_t parent_pid;
 static bool in_child = false;
 
-static std::stringstream shutdown_message;
+static stringstream shutdown_message;
 static bool shutdown_triggered = false;
 
 static bool in_emergency_mode = false;
@@ -247,12 +249,13 @@ send_shutdown_message(const char *message)
 
     s << "*** Shutting down: " << message << " ***";
 
+const auto messageString = s.str().c_str();
     for (h = all_shandles; h; h = h->next)
-        network_send_line(h->nhandle, s.str().c_str(), 1, 1);
+        network_send_line(h->nhandle, messageString, 1, 1);
 }
 
 static void
-abort_server(void)
+abort_server()
 {
     signal(SIGINT, SIG_DFL);
     signal(SIGTERM, SIG_DFL);
@@ -308,7 +311,7 @@ enum Fork_Result
 fork_server(const char *subtask_name)
 {
     pid_t pid;
-    std::stringstream s;
+    stringstream s;
 
     s << "Forking " << subtask_name;
 
@@ -588,7 +591,7 @@ queue_anonymous_object(Var v)
 }
 
 static void
-recycle_anonymous_objects(void)
+recycle_anonymous_objects()
 {
     if (!pending_head)
         return;
@@ -631,7 +634,7 @@ recycle_anonymous_objects(void)
 }
 
 static void
-recycle_waifs(void)
+recycle_waifs()
 {
     /* This seems like a lot of work to go through just to get a destroy verb name.
      * Maybe it should just be a #define in waif.h? Ah well.*/
