@@ -123,7 +123,9 @@ list_dup(Var list)
             _new.v.list[i] = (type == TYPE_WAIF || type == TYPE_ANON? var_ref(list.v.list[i]) : var_dup(list.v.list[i]));
         }
 
+#ifdef ENABLE_GC
     gc_set_color(_new.v.list, gc_get_color(list.v.list));
+#endif
 
     return _new;
 }

@@ -32,7 +32,9 @@
 #include "config.h"
 #include "db.h"
 #include "db_io.h"
+#ifdef ENABLE_GC
 #include "garbage.h"
+#endif
 #include "list.h"
 #include "log.h"
 #include "map.h"
