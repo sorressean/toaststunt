@@ -49,13 +49,11 @@ typedef enum GC_Color {
     GC_PINK
 } GC_Color;
 
-typedef struct reference_overhead {
-    unsigned int count:28;
-#ifdef ENABLE_GC
+typedef struct gc_overhead {
     unsigned int buffered:1;
     GC_Color color:3;
+} gc_overhead;
  #endif
-} reference_overhead;
 
 static inline int
 addref(const void *ptr)
