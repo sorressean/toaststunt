@@ -38,7 +38,7 @@ CurlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
     return realsize;
 }
 
-void curl_thread_callback(Var arglist, Var *ret)
+static void curl_thread_callback(Var arglist, Var *ret)
 {
     CURLcode res;
     CurlMemoryStruct chunk;

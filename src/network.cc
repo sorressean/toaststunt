@@ -146,6 +146,11 @@ static const char *bind_ipv6 = nullptr;
 
 struct addrinfo tcp_hint;
 
+static const char *get_ntop(const struct sockaddr_storage *sa);
+static const char *get_nameinfo(const struct sockaddr *sa);
+static unsigned short int get_in_port(const struct sockaddr_storage *sa);
+static char *get_port_str(int port);
+
 void
 network_register_fd(int fd, network_fd_callback readable, network_fd_callback writable, void *data)
 {
@@ -847,7 +852,7 @@ make_listener(Var desc, int *fd, const char **name, const char **ip_address,
     return E_NONE;
 }
 
-void *get_in_addr(const struct sockaddr_storage *sa)
+static void *get_in_addr(const struct sockaddr_storage *sa)
 {
     switch (sa->ss_family) {
         case AF_INET:
@@ -859,7 +864,7 @@ void *get_in_addr(const struct sockaddr_storage *sa)
     }
 }
 
-unsigned short int get_in_port(const struct sockaddr_storage *sa)
+static unsigned short int get_in_port(const struct sockaddr_storage *sa)
 {
     switch (sa->ss_family) {
         case AF_INET:
@@ -871,7 +876,7 @@ unsigned short int get_in_port(const struct sockaddr_storage *sa)
     }
 }
 
-const char *get_ntop(const struct sockaddr_storage *sa)
+static const char *get_ntop(const struct sockaddr_storage *sa)
 {
     switch (sa->ss_family) {
         case AF_INET:
@@ -887,7 +892,7 @@ const char *get_ntop(const struct sockaddr_storage *sa)
     }
 }
 
-const char *get_nameinfo(const struct sockaddr *sa)
+static const char *get_nameinfo(const struct sockaddr *sa)
 {
     char hostname[NI_MAXHOST] = "";
     socklen_t sa_length = (sa->sa_family == AF_INET6 ? sizeof(sockaddr_in6) : sizeof(sockaddr_in));
@@ -905,7 +910,7 @@ const char *get_nameinfo(const struct sockaddr *sa)
     return str_dup(hostname);
 }
 
-const char *get_nameinfo_port(const struct sockaddr *sa)
+static const char *get_nameinfo_port(const struct sockaddr *sa)
 {
     char service[NI_MAXSERV];
     int status = getnameinfo(sa, sizeof * sa, nullptr, 0, service, sizeof service, NI_NUMERICSERV);
@@ -918,7 +923,7 @@ const char *get_nameinfo_port(const struct sockaddr *sa)
     return str_dup(service);
 }
 
-const char *get_ipver(const struct sockaddr_storage *sa)
+static const char *get_ipver(const struct sockaddr_storage *sa)
 {
     switch (sa->ss_family) {
         case AF_INET:
@@ -930,7 +935,7 @@ const char *get_ipver(const struct sockaddr_storage *sa)
     }
 }
 
-char *get_port_str(int port)
+static char *get_port_str(int port)
 {
     char *port_str = nullptr;
     asprintf(&port_str, "%d", port);

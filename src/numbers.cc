@@ -55,7 +55,7 @@ IS_REAL(const float x)
     return (-DBL_MAX <= (x) && (x) <= DBL_MAX);
 }
 
-void reseed_rng()
+static void reseed_rng()
 {
     std::random_device entropy_source;
     std::seed_seq::result_type data[std::mt19937::state_size];
