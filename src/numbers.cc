@@ -319,6 +319,11 @@ const bool use_double = (a.type == TYPE_FLOAT || b.type == TYPE_FLOAT);
 const auto left = (a.type == TYPE_INT? a.v.num : a.v.fnum);
 const auto right = (b.type == TYPE_INT? b.v.num : b.v.fnum);
 
+if (right == 0)
+{
+return Var::new_error(E_FLOAT);
+}
+
 if (use_double)
 {
 const double result = static_cast<double>(left) / static_cast<double>(right);
