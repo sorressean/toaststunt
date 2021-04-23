@@ -542,7 +542,7 @@ bf_chparent_chparents(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (OBJ obj, OBJ|LIST what, LIST anon) */
     Var obj = arglist.v.list[1];
     Var what = arglist.v.list[2];
-    int n = listlength(arglist);
+    const int n = listlength(arglist);
     Var anon_kids = nothing;
 
     if (!obj.is_object() || !is_obj_or_list_of_objs(what)) {

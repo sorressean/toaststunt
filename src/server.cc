@@ -711,15 +711,12 @@ read_values_pending_finalization(void)
 }
 
 static void
-main_loop(void)
+main_loop()
 {
-    int i;
-
     /* First, queue anonymous objects */
-    for (i = 1; i <= pending_list.v.list[0].v.num; i++) {
-        Var v;
-
-        v = pending_list.v.list[i];
+const auto pendingLength = pending_list.v.list[0].v.num;
+    for (int i = 1; i <= pendingLength; i++) {
+        auto v = pending_list.v.list[i];
 
         /* in theory this could be any value... */
         /* in practice this will be an anonymous object... */
@@ -731,10 +728,9 @@ main_loop(void)
     free_var(pending_list);
 
     /* Second, notify DB of disconnections for all checkpointed connections */
-    for (i = 1; i <= checkpointed_connections.v.list[0].v.num; i++) {
-        Var v;
-
-        v = checkpointed_connections.v.list[i];
+const auto checkpointConnectionsLength = checkpointed_connections.v.list[0].v.num;
+    for (int i = 1; i <= checkpointConnectionsLength; i++) {
+        auto v = checkpointed_connections.v.list[i];
         call_notifier(v.v.list[1].v.obj, v.v.list[2].v.obj,
                       "user_disconnected");
     }
@@ -750,8 +746,8 @@ main_loop(void)
          * We only care about three cases (== 0, == 1, and > 1), so we can
          * map a `never' result from the task subsystem into 2.
          */
-        int task_useconds = next_task_start();
-        int useconds_left = task_useconds < 0 ? 1000000 : task_useconds;
+        const int task_useconds = next_task_start();
+        const int useconds_left = task_useconds < 0 ? 1000000 : task_useconds;
         shandle *h, *nexth;
 
 #ifdef ENABLE_GC
@@ -809,16 +805,15 @@ main_loop(void)
         deal_with_child_exit();
 
         {   /* Get rid of old un-logged-in or useless connections */
-            int now = time(nullptr);
+            const int now = time(nullptr);
 
             for (h = all_shandles; h; h = nexth) {
-                Var v;
-
                 nexth = h->next;
 
                 if (nhandle_refcount(h->nhandle) > 1)
                     continue;
 
+Var v;
                 if (!h->outbound && h->connection_time == 0
                         && (get_server_option(h->listener, "connect_timeout", &v)
                             ? (v.type == TYPE_INT && v.v.num > 0
@@ -880,9 +875,7 @@ main_loop(void)
 static shandle *
 find_shandle(Objid player)
 {
-    shandle *h;
-
-    for (h = all_shandles; h; h = h->next)
+    for (shandle* h = all_shandles; h; h = h->next)
         if (h->player == player)
             return h;
 
@@ -1274,7 +1267,7 @@ do_script_file(const char *path)
 }
 
 static void
-init_random(void)
+init_random()
 {
     long seed;
 

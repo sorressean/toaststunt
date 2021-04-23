@@ -467,10 +467,9 @@ static package
 bf_toint(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var r;
-    enum error e;
 
     r.type = TYPE_INT;
-    e = become_integer(arglist.v.list[1], &(r.v.num), 1);
+    const enum error e = become_integer(arglist.v.list[1], &(r.v.num), 1);
 
     free_var(arglist);
     if (e != E_NONE)
@@ -483,10 +482,8 @@ static package
 bf_tofloat(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var r;
-    enum error e;
-
     r.type = TYPE_FLOAT;
-    e = become_float(arglist.v.list[1], &r.v.fnum);
+    const enum error e = become_float(arglist.v.list[1], &r.v.fnum);
 
     free_var(arglist);
     if (e != E_NONE)
@@ -499,18 +496,18 @@ static package
 bf_min(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var r;
-    int i, nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     int bad_types = 0;
 
     r = arglist.v.list[1];
     if (r.type == TYPE_INT) {   /* integers */
-        for (i = 2; i <= nargs; i++)
+        for (int i = 2; i <= nargs; i++)
             if (arglist.v.list[i].type != TYPE_INT)
                 bad_types = 1;
             else if (arglist.v.list[i].v.num < r.v.num)
                 r = arglist.v.list[i];
     } else {            /* floats */
-        for (i = 2; i <= nargs; i++)
+        for (int i = 2; i <= nargs; i++)
             if (arglist.v.list[i].type != TYPE_FLOAT)
                 bad_types = 1;
             else if (arglist.v.list[i].v.fnum < r.v.fnum)
@@ -529,18 +526,18 @@ static package
 bf_max(Var arglist, Byte next, void *vdata, Objid progr)
 {
     Var r;
-    int i, nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     int bad_types = 0;
 
     r = arglist.v.list[1];
     if (r.type == TYPE_INT) {   /* integers */
-        for (i = 2; i <= nargs; i++)
+        for (int i = 2; i <= nargs; i++)
             if (arglist.v.list[i].type != TYPE_INT)
                 bad_types = 1;
             else if (arglist.v.list[i].v.num > r.v.num)
                 r = arglist.v.list[i];
     } else {            /* floats */
-        for (i = 2; i <= nargs; i++)
+        for (int i = 2; i <= nargs; i++)
             if (arglist.v.list[i].type != TYPE_FLOAT)
                 bad_types = 1;
             else if (arglist.v.list[i].v.fnum > r.v.fnum)
@@ -609,9 +606,7 @@ MATH_FUNC(floor)
 static package
 bf_trunc(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    double d;
-
-    d = arglist.v.list[1].v.fnum;
+    double d = arglist.v.list[1].v.fnum;
     errno = 0;
     if (d < 0.0)
         d = ceil(d);
@@ -629,9 +624,9 @@ bf_trunc(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_atan(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    double d, dd;
+    double dd;
 
-    d = arglist.v.list[1].v.fnum;
+    double d = arglist.v.list[1].v.fnum;
     errno = 0;
     if (arglist.v.list[0].v.num >= 2) {
         dd = arglist.v.list[2].v.fnum;
@@ -664,11 +659,8 @@ bf_atan2(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_time(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    Var r;
-    r.type = TYPE_INT;
-    r.v.num = time(nullptr);
     free_var(arglist);
-    return make_var_pack(r);
+    return make_var_pack(Var::new_int(time(nullptr)));
 }
 
 static package
@@ -765,10 +757,10 @@ bf_ftime(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_random(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
 
-    Num minnum = (nargs == 2 ? arglist.v.list[1].v.num : 1);
-    Num maxnum = (nargs >= 1 ? arglist.v.list[nargs].v.num : INTNUM_MAX);
+    const Num minnum = (nargs == 2 ? arglist.v.list[1].v.num : 1);
+    const Num maxnum = (nargs >= 1 ? arglist.v.list[nargs].v.num : INTNUM_MAX);
 
     free_var(arglist);
 
@@ -796,27 +788,22 @@ bf_reseed_random(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_frandom(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    double fmin = (arglist.v.list[0].v.num > 1 ? arglist.v.list[1].v.fnum : 0.0);
-    double fmax = (arglist.v.list[0].v.num > 1 ? arglist.v.list[2].v.fnum : arglist.v.list[1].v.fnum);
+    const double fmin = (arglist.v.list[0].v.num > 1 ? arglist.v.list[1].v.fnum : 0.0);
+    const double fmax = (arglist.v.list[0].v.num > 1 ? arglist.v.list[2].v.fnum : arglist.v.list[1].v.fnum);
 
     free_var(arglist);
 
     double f = (double)rand() / RAND_MAX;
     f = fmin + f * (fmax - fmin);
 
-    Var ret;
-    ret.type = TYPE_FLOAT;
-    ret.v.fnum = f;
-
-    return make_var_pack(ret);
-
+    return make_var_pack(Var::new_float(f));
 }
 
 /* Round numbers to the nearest integer value to args[1] */
 static package
 bf_round(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    double r = round((double)arglist.v.list[1].v.fnum);
+    const double r = round((double)arglist.v.list[1].v.fnum);
 
     free_var(arglist);
 
@@ -841,12 +828,11 @@ bf_random_bytes(Var arglist, Byte next, void *vdata, Objid progr)
     Var r;
     package p;
 
-    int len = arglist.v.list[1].v.num;
+    const int len = arglist.v.list[1].v.num;
 
     if (len < 0 || len > 10000) {
-        p = make_raise_pack(E_INVARG, "Invalid count", var_ref(arglist.v.list[1]));
         free_var(arglist);
-        return p;
+        return make_raise_pack(E_INVARG, "Invalid count", var_ref(arglist.v.list[1]));
     }
 
     unsigned char out[len];
@@ -880,12 +866,11 @@ bf_random_bytes(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_floatstr(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (float, precision [, sci-notation]) */
-    double d = arglist.v.list[1].v.fnum;
+    const double d = arglist.v.list[1].v.fnum;
     int prec = arglist.v.list[2].v.num;
-    int use_sci = (arglist.v.list[0].v.num >= 3
+    const int use_sci = (arglist.v.list[0].v.num >= 3
                    && is_true(arglist.v.list[3]));
     char fmt[10], output[500];  /* enough for IEEE double */
-    Var r;
 
     free_var(arglist);
     if (prec > __DECIMAL_DIG__)
@@ -895,10 +880,7 @@ bf_floatstr(Var arglist, Byte next, void *vdata, Objid progr)
     sprintf(fmt, "%%.%d%c", prec, use_sci ? 'e' : 'f');
     sprintf(output, fmt, d);
 
-    r.type = TYPE_STR;
-    r.v.str = str_dup(output);
-
-    return make_var_pack(r);
+    return make_var_pack(Var::new_string(output));
 }
 
 /* Calculates the distance between two n-dimensional sets of coordinates. */
@@ -906,10 +888,9 @@ static package
 bf_distance(Var arglist, Byte next, void *vdata, Objid progr)
 {
     double ret = 0.0, tmp = 0.0;
-    int count;
 
     const Num list_length = arglist.v.list[1].v.list[0].v.num;
-    for (count = 1; count <= list_length; count++)
+    for (int count = 1; count <= list_length; count++)
     {
         if ((arglist.v.list[1].v.list[count].type != TYPE_INT && arglist.v.list[1].v.list[count].type != TYPE_FLOAT) || (arglist.v.list[2].v.list[count].type != TYPE_INT && arglist.v.list[2].v.list[count].type != TYPE_FLOAT))
         {
@@ -937,9 +918,9 @@ bf_relative_heading(Var arglist, Byte next, void *vdata, Objid progr)
         return make_error_pack(E_TYPE);
     }
 
-    double dx = arglist.v.list[2].v.list[1].v.fnum - arglist.v.list[1].v.list[1].v.fnum;
-    double dy = arglist.v.list[2].v.list[2].v.fnum - arglist.v.list[1].v.list[2].v.fnum;
-    double dz = arglist.v.list[2].v.list[3].v.fnum - arglist.v.list[1].v.list[3].v.fnum;
+    const double dx = arglist.v.list[2].v.list[1].v.fnum - arglist.v.list[1].v.list[1].v.fnum;
+    const double dy = arglist.v.list[2].v.list[2].v.fnum - arglist.v.list[1].v.list[2].v.fnum;
+    const double dz = arglist.v.list[2].v.list[3].v.fnum - arglist.v.list[1].v.list[3].v.fnum;
 
     double xy = 0.0;
     double z = 0.0;
@@ -965,7 +946,7 @@ bf_relative_heading(Var arglist, Byte next, void *vdata, Objid progr)
 Var zero;           /* useful constant */
 
 void
-register_numbers(void)
+register_numbers()
 {
     zero.type = TYPE_INT;
     zero.v.num = 0;

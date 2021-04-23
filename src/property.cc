@@ -64,9 +64,8 @@ bf_properties(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (object, prop-name) */
-    Var obj = arglist.v.list[1];
+    const Var obj = arglist.v.list[1];
     const char *pname = arglist.v.list[2].v.str;
-    db_prop_handle h;
     Var r;
     unsigned flags;
     char perms[4], *s;
@@ -79,7 +78,7 @@ bf_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
         free_var(arglist);
         return make_error_pack(E_INVARG);
     }
-    h = db_find_property(obj, pname, nullptr);
+    const db_prop_handle h = db_find_property(obj, pname, nullptr);
     free_var(arglist);
 
     if (!h.ptr || db_is_property_built_in(h))
@@ -106,10 +105,10 @@ bf_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
 }
 
 static enum error
-validate_prop_info(Var v, Objid * owner, unsigned *flags, const char **name)
+validate_prop_info(const Var& v, Objid * owner, unsigned *flags, const char **name)
 {
     const char *s;
-    int len = (v.type == TYPE_LIST ? v.v.list[0].v.num : 0);
+    const int len = (v.type == TYPE_LIST ? v.v.list[0].v.num : 0);
 
     if (!((len == 2 || len == 3)
             && v.v.list[1].type == TYPE_OBJ
@@ -149,13 +148,12 @@ validate_prop_info(Var v, Objid * owner, unsigned *flags, const char **name)
 }
 
 static enum error
-set_prop_info(Var obj, const char *pname, Var info, Objid progr)
+set_prop_info(Var& obj, const char *pname, const Var& info, Objid progr)
 {
     Objid new_owner;
     unsigned new_flags;
     const char *new_name;
     enum error e;
-    db_prop_handle h;
 
     if (!obj.is_object())
         e = E_TYPE;
@@ -167,7 +165,7 @@ set_prop_info(Var obj, const char *pname, Var info, Objid progr)
     if (e != E_NONE)
         return e;
 
-    h = db_find_property(obj, pname, nullptr);
+    db_prop_handle h = db_find_property(obj, pname, nullptr);
 
     if (!h.ptr || db_is_property_built_in(h))
         return E_PROPNF;
@@ -192,8 +190,8 @@ bf_set_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (object, prop-name, {owner, perms [, new-name]}) */
     Var obj = arglist.v.list[1];
     const char *pname = arglist.v.list[2].v.str;
-    Var info = arglist.v.list[3];
-    enum error e = set_prop_info(obj, pname, info, progr);
+    const Var info = arglist.v.list[3];
+    const enum error e = set_prop_info(obj, pname, info, progr);
 
     free_var(arglist);
 
@@ -208,14 +206,13 @@ bf_add_prop(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (object, prop-name, initial-value, initial-info) */
     Var obj = arglist.v.list[1];
     const char *pname = arglist.v.list[2].v.str;
-    Var value = arglist.v.list[3];
-    Var info = arglist.v.list[4];
+    const Var value = arglist.v.list[3];
+    const Var info = arglist.v.list[4];
     Objid owner;
     unsigned flags;
     const char *new_name;
-    enum error e;
-
-    if ((e = validate_prop_info(info, &owner, &flags, &new_name)) != E_NONE)
+    enum error e = validate_prop_info(info, &owner, &flags, &new_name);
+    if (e != E_NONE)
         ; /* already failed */
     else if (new_name || !obj.is_object())
         e = E_TYPE;
@@ -264,8 +261,6 @@ bf_clear_prop(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (object, prop-name) */
     Var obj = arglist.v.list[1];
     const char *pname = arglist.v.list[2].v.str;
-    db_prop_handle h;
-    Var value;
     enum error e;
 
     if (!obj.is_object())
@@ -273,7 +268,7 @@ bf_clear_prop(Var arglist, Byte next, void *vdata, Objid progr)
     else if (!is_valid(obj))
         e = E_INVARG;
     else {
-        h = db_find_property(obj, pname, nullptr);
+        const db_prop_handle h = db_find_property(obj, pname, nullptr);
         if (!h.ptr)
             e = E_PROPNF;
         else if (db_is_property_built_in(h) || !db_property_allows(h, progr, PF_WRITE))
@@ -281,6 +276,7 @@ bf_clear_prop(Var arglist, Byte next, void *vdata, Objid progr)
         else if (db_is_property_defined_on(h, obj))
             e = E_INVARG;
         else {
+            Var value;
             value.type = TYPE_CLEAR;
             db_set_property_value(h, value);
             e = E_NONE;
@@ -300,7 +296,6 @@ bf_is_clear_prop(Var arglist, Byte next, void *vdata, Objid progr)
 {   /* (object, prop-name) */
     Var obj = arglist.v.list[1];
     const char *pname = arglist.v.list[2].v.str;
-    db_prop_handle h;
     Var r;
     enum error e;
 
@@ -309,7 +304,7 @@ bf_is_clear_prop(Var arglist, Byte next, void *vdata, Objid progr)
     else if (!is_valid(obj))
         e = E_INVARG;
     else {
-        h = db_find_property(obj, pname, nullptr);
+        const db_prop_handle h = db_find_property(obj, pname, nullptr);
         if (!h.ptr)
             e = E_PROPNF;
         else if (!db_is_property_built_in(h) && !db_property_allows(h, progr, PF_READ))
@@ -330,20 +325,20 @@ bf_is_clear_prop(Var arglist, Byte next, void *vdata, Objid progr)
 }
 
 void
-register_property(void)
+register_property()
 {
-    (void) register_function("properties", 1, 1, bf_properties,
+    register_function("properties", 1, 1, bf_properties,
                              TYPE_ANY);
-    (void) register_function("property_info", 2, 2, bf_prop_info,
+    register_function("property_info", 2, 2, bf_prop_info,
                              TYPE_ANY, TYPE_STR);
-    (void) register_function("set_property_info", 3, 3, bf_set_prop_info,
+     register_function("set_property_info", 3, 3, bf_set_prop_info,
                              TYPE_ANY, TYPE_STR, TYPE_LIST);
-    (void) register_function("add_property", 4, 4, bf_add_prop,
+    register_function("add_property", 4, 4, bf_add_prop,
                              TYPE_ANY, TYPE_STR, TYPE_ANY, TYPE_LIST);
-    (void) register_function("delete_property", 2, 2, bf_delete_prop,
+    register_function("delete_property", 2, 2, bf_delete_prop,
                              TYPE_ANY, TYPE_STR);
-    (void) register_function("clear_property", 2, 2, bf_clear_prop,
+    register_function("clear_property", 2, 2, bf_clear_prop,
                              TYPE_ANY, TYPE_STR);
-    (void) register_function("is_clear_property", 2, 2, bf_is_clear_prop,
+    register_function("is_clear_property", 2, 2, bf_is_clear_prop,
                              TYPE_ANY, TYPE_STR);
 }
