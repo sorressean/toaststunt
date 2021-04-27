@@ -158,7 +158,7 @@ extern int db_object_bytes(Var);
 				 * properties.
 				 */
 
-extern Var db_ancestors(Var, bool);
+extern Var db_ancestors(const Var&, bool);
 				/* Returns a list of the ancestors of the
 				 * given object.  db_ancestors() does not/
 				 * can not free the returned list.  The caller
@@ -192,9 +192,9 @@ extern Var db_all_contents(Var, bool);
 
 /**** object attributes ****/
 
-extern Objid db_object_owner2(Var);
+extern Objid db_object_owner2(const Var&);
 
-extern Var db_object_parents2(Var);
+extern Var db_object_parents2(const Var&);
 extern Var db_object_children2(Var);
 
 extern Objid db_object_owner(Objid);

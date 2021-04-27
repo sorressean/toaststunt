@@ -265,7 +265,7 @@ static Var new_string(const char* string)
     }
 
     static Var
-    new_bool(int value) {
+    new_bool(const int value) {
         Var v;
         v.type = TYPE_BOOL;
         v.v.truth = value ? true : false;

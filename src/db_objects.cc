@@ -709,7 +709,7 @@ DEFUNC(all_contents, contents);
 #ifdef USE_ANCESTOR_CACHE
 DEFUNC(find_ancestors, parents);
 
-Var db_ancestors(Var obj, bool full) {
+Var db_ancestors(const Var &obj, bool full) {
     Object *o = dbpriv_dereference(obj);
 
     if (obj.type != TYPE_OBJ || !is_valid(obj) || o->parents.v.obj == NOTHING)
@@ -739,7 +739,7 @@ DEFUNC(ancestors, parents);
 /*********** Object attributes ***********/
 
 Objid
-db_object_owner2(Var obj)
+db_object_owner2(const Var& obj)
 {
     return (TYPE_ANON == obj.type) ?
            dbpriv_object_owner(obj.v.anon) :
@@ -747,7 +747,7 @@ db_object_owner2(Var obj)
 }
 
 Var
-db_object_parents2(Var obj)
+db_object_parents2(const Var& obj)
 {
     return (TYPE_ANON == obj.type) ?
            dbpriv_object_parents(obj.v.anon) :
