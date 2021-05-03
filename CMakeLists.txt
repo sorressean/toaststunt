@@ -212,6 +212,7 @@ set(src_CXXSRCS
     src/argon2.cc
     src/spellcheck.cc
 	src/extension-sorressean.cc
+		src/extension-vcl.cpp
     src/curl.cc)
 
 set(src_GRAMMAR

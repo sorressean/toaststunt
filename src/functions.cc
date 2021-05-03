@@ -114,7 +114,8 @@ register_bi_functions()
         register_argon2,
         register_spellcheck,
         register_curl,
-register_sorressean_extensions
+                register_sorressean_extensions,
+                register_vcl_extensions
     };
     for (const auto& callback : registry_callbacks)
     {
