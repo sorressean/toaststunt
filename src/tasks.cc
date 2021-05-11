@@ -1082,7 +1082,7 @@ static const char mxp_oob_prefix[] = {27,91,49,122};
     else if (sizeof(oob_prefix) > 1
              && strncmp(oob_prefix, input, sizeof(oob_prefix) - 1) == 0)
         t->kind = TASK_OOB;
-    else if (strncmp(mxp_oob_prefix, input, sizeof(mxp_oob_prefix) - 1) == 0)
+    else if (strncmp(mxp_oob_prefix, input, sizeof(mxp_oob_prefix)) == 0)
         t->kind = TASK_OOB;
     else
         t->kind = TASK_INBAND;
