@@ -32,6 +32,8 @@
 #include <boost/accumulators/statistics/sum.hpp>
 #include <boost/accumulators/statistics/variance.hpp>
 
+typedef int (*IsCharCallback)(int c);
+
 using namespace std;
 using namespace boost::accumulators;
 
@@ -753,7 +755,7 @@ bf_ispunct(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(Var::new_int(result));
 }
 
-static void register_sorressean_extensions()
+void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
     register_function("iassoc", 2, 3, bf_iassoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
