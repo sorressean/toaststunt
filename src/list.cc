@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <algorithm> // std::sort
-#include "dependencies/strnatcmp.c" // natural sorting
+#include "dependencies/strnatcmp.h" // natural sorting
 #include <vector>
 
 #include <ctype.h>
@@ -932,6 +932,37 @@ bf_slice(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(ret);
 }
 
+/*
+* The comparison functor for sort
+*/
+    struct SortCompare {
+        SortCompare(const Var *Arglist, const bool Natural) : m_Arglist(Arglist), m_Natural(Natural) {}
+
+        bool operator()(const size_t a, const size_t b) const
+        {
+            const Var lhs = m_Arglist[a];
+            const Var rhs = m_Arglist[b];
+
+            switch (rhs.type) {
+                case TYPE_INT:
+                    return lhs.v.num < rhs.v.num;
+                case TYPE_FLOAT:
+                    return lhs.v.fnum < rhs.v.fnum;
+                case TYPE_OBJ:
+                    return lhs.v.obj < rhs.v.obj;
+                case TYPE_ERR:
+                    return ((int) lhs.v.err) < ((int) rhs.v.err);
+                case TYPE_STR:
+                    return (m_Natural ? strnatcasecmp(lhs.v.str, rhs.v.str) : strcasecmp(lhs.v.str, rhs.v.str)) < 0;
+                default:
+                    errlog("Unknown type in sort compare: %d\n", rhs.type);
+                    return 0;
+            }
+        }
+        const Var *m_Arglist;
+        const bool m_Natural;
+    };
+
 /* Sorts various MOO types using std::sort.
  * Args: LIST <values to sort>, [LIST <values to sort by>], [INT <natural sort ordering?>], [INT <reverse?>] */
 void sort_callback(Var arglist, Var *ret)
@@ -955,7 +986,7 @@ void sort_callback(Var arglist, Var *ret)
     const var_type type_to_sort = arglist.v.list[list_to_sort].v.list[1].type;
 
     const Num list_length = arglist.v.list[list_to_sort].v.list[0].v.num;
-    for (int count = 1; count <= list_length; count++)
+    for (size_t count = 1; count <= list_length; count++)
     {
         var_type type = arglist.v.list[list_to_sort].v.list[count].type;
         if (type != type_to_sort || type == TYPE_LIST || type == TYPE_MAP || type == TYPE_ANON || type == TYPE_WAIF)
@@ -967,41 +998,12 @@ void sort_callback(Var arglist, Var *ret)
         s[count - 1] = count;
     }
 
-    struct VarCompare {
-        VarCompare(const Var *Arglist, const bool Natural) : m_Arglist(Arglist), m_Natural(Natural) {}
-
-        bool operator()(const size_t a, const size_t b) const
-        {
-            Var lhs = m_Arglist[a];
-            Var rhs = m_Arglist[b];
-
-            switch (rhs.type) {
-                case TYPE_INT:
-                    return lhs.v.num < rhs.v.num;
-                case TYPE_FLOAT:
-                    return lhs.v.fnum < rhs.v.fnum;
-                case TYPE_OBJ:
-                    return lhs.v.obj < rhs.v.obj;
-                case TYPE_ERR:
-                    return ((int) lhs.v.err) < ((int) rhs.v.err);
-                case TYPE_STR:
-                    return (m_Natural ? strnatcasecmp(lhs.v.str, rhs.v.str) : strcasecmp(lhs.v.str, rhs.v.str)) < 0;
-                default:
-                    errlog("Unknown type in sort compare: %d\n", rhs.type);
-                    return 0;
-            }
-        }
-        const Var *m_Arglist;
-        const bool m_Natural;
-    };
-
-    std::sort(s.begin(), s.end(), VarCompare(arglist.v.list[list_to_sort].v.list, natural));
-
-    *ret = new_list(s.size());
+    std::sort(s.begin(), s.end(), SortCompare(arglist.v.list[list_to_sort].v.list, natural));
 
     if (reverse)
         std::reverse(std::begin(s), std::end(s));
 
+    *ret = new_list(s.size());
     int moo_list_pos = 0;
     for (const auto &it : s) {
         ret->v.list[++moo_list_pos] = (arglist.v.list[1].v.list[it].type == TYPE_WAIF || arglist.v.list[1].v.list[it].type == TYPE_ANON) ? var_ref(arglist.v.list[1].v.list[it]) : var_dup(arglist.v.list[1].v.list[it]);

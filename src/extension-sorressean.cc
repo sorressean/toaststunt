@@ -2,6 +2,13 @@
 * While not all of these extensions are mine, this file exists to separate the functions I add to this fork away from the lisdude extensions.
 * This should theoretically mean that life doesn't break when I merge every time.
 */
+#include <algorithm>
+#include <iterator>
+#include <sstream>
+#include <vector>
+
+#include "dependencies/strnatcmp.c" // natural sorting
+
 #include "background.h"
 #include "collection.h" //ismember
 #include "db.h"
@@ -11,9 +18,6 @@
 #include "log.h"            // oklog()
 #include "map.h" //mapforeach, etc
 #include "utils.h" //free_var plus many others
-
-#include <sstream>
-#include <vector>
 
 #include <boost/algorithm/clamp.hpp>
 
@@ -574,6 +578,123 @@ bf_mdistance(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(distances);
 }
 
+struct AlistCompare
+{
+    AlistCompare(const Var *Arglist, const bool Natural, const int index) :
+        m_Arglist(Arglist), m_Natural(Natural), m_index(index)
+    {
+    }
+
+    bool operator()(const size_t a, const size_t b) const
+    {
+        const Var lhs = m_Arglist[a].v.list[m_index];
+        const Var rhs = m_Arglist[b].v.list[m_index];
+
+        switch (rhs.type)
+            {
+            case TYPE_INT:
+                return lhs.v.num < rhs.v.num;
+            case TYPE_FLOAT:
+                return lhs.v.fnum < rhs.v.fnum;
+            case TYPE_OBJ:
+                return lhs.v.obj < rhs.v.obj;
+            case TYPE_ERR:
+                return ((int) lhs.v.err) < ((int) rhs.v.err);
+            case TYPE_STR:
+                return (m_Natural ? strnatcasecmp(lhs.v.str, rhs.v.str) : strcasecmp(lhs.v.str, rhs.v.str)) < 0;
+            default:
+                errlog("Unknown type in alist sort compare: %d\n", rhs.type);
+                return 0;
+            }
+    }
+    const Var *m_Arglist;
+    const bool m_Natural;
+    const int m_index;
+};
+
+static void sort_alist_callback(Var arglist, Var *ret)
+{
+    const int nargs = arglist.v.list[0].v.num;
+    const int list_to_sort = (nargs >= 2 && arglist.v.list[2].v.list[0].v.num > 0 ? 2 : 1);
+    const int index = (nargs >= 3 ? arglist.v.list[3].v.num : 1);
+    const bool natural = (nargs >= 4 && is_true(arglist.v.list[4]));
+    const bool reverse = (nargs >= 5 && is_true(arglist.v.list[5]));
+
+    if (arglist.v.list[list_to_sort].v.list[0].v.num == 0)
+        {
+            *ret = new_list(0);
+            return;
+        }
+    else if (list_to_sort == 2 && arglist.v.list[1].v.list[0].v.num != arglist.v.list[2].v.list[0].v.num)
+        {
+            ret->type = TYPE_ERR;
+            ret->v.err = E_INVARG;
+            return;
+        }
+    else if (index < 1)
+        {
+            ret->type = TYPE_ERR;
+            ret->v.err = E_RANGE;
+            return;
+        }
+
+    const Num list_length = arglist.v.list[list_to_sort].v.list[0].v.num;
+    // Create and sort a vector of indices rather than values. This makes it easier to sort a list by another list.
+    vector<size_t> values(list_length);
+//validate list.
+    for (size_t count = 1; count <= list_length; ++count)
+        {
+            if (arglist.v.list[list_to_sort].v.list[count].type != TYPE_LIST)
+                {
+                    ret->type = TYPE_ERR;
+                    ret->v.err = E_INVARG;
+                    return;
+                }
+            else if (arglist.v.list[list_to_sort].v.list[count].v.list[0].v.num < index)
+                {
+                    ret->type = TYPE_ERR;
+                    ret->v.err = E_RANGE;
+                    return;
+                }
+            values[count-1] = count;
+        }
+
+//this means that we need a second loop through the list, but it makes the code more clean
+    const auto first_type = arglist.v.list[list_to_sort].v.list[index].v.list[1].type;
+    for (size_t count = 2; count <= list_length; ++count)
+        {
+            const auto type = arglist.v.list[list_to_sort].v.list[index].v.list[count].type;
+            if (type != first_type || type == TYPE_LIST || type == TYPE_MAP || type == TYPE_ANON || type == TYPE_WAIF)
+                {
+                    ret->type = TYPE_ERR;
+                    ret->v.err = E_TYPE;
+                    return;
+                }
+        }
+
+    std::sort(values.begin(), values.end(), AlistCompare(arglist.v.list[list_to_sort].v.list, natural, index));
+    if (reverse)
+        std::reverse(std::begin(values), std::end(values));
+
+    *ret = new_list(values.size());
+    int moo_list_pos = 0;
+    for (const auto &it : values)
+        {
+            ret->v.list[++moo_list_pos] = list_dup(arglist.v.list[1].v.list[it]);
+        }
+}
+
+static package
+bf_sort_alist(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    char *human_string = nullptr;
+    asprintf(&human_string, "sorting %" PRIdN " element alist", arglist.v.list[1].v.list[0].v.num);
+
+    return background_thread(sort_alist_callback, &arglist, human_string);
+}
+
+
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -594,4 +715,5 @@ void register_sorressean_extensions()
     register_function("clamp", 3, 3, bf_clamp, TYPE_NUMERIC, TYPE_NUMERIC, TYPE_NUMERIC);
     register_function("collect_stats", 1, 1, bf_collect_stats, TYPE_LIST);
     register_function("mdistance", 3, 3, bf_mdistance, TYPE_LIST, TYPE_LIST, TYPE_FLOAT);
+    register_function("sort_alist", 1, 5, bf_sort_alist, TYPE_LIST, TYPE_LIST, TYPE_INT, TYPE_INT, TYPE_INT);
 }
