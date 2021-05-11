@@ -665,7 +665,7 @@ static void sort_alist_callback(Var arglist, Var *ret)
     const auto first_type = arglist.v.list[list_to_sort].v.list[index].v.list[1].type;
     for (size_t count = 2; count <= list_length; ++count)
         {
-            const auto type = arglist.v.list[list_to_sort].v.list[index].v.list[count].type;
+            const auto type = arglist.v.list[list_to_sort].v.list[count].v.list[index].type;
             if (type != first_type || type == TYPE_LIST || type == TYPE_MAP || type == TYPE_ANON || type == TYPE_WAIF)
                 {
                     ret->type = TYPE_ERR;
