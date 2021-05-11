@@ -58,7 +58,7 @@
   header comment, such as this one.
 */
 
-#define HEIGHT_LIMIT 64     /* Tallest allowable tree */
+#define HEIGHT_LIMIT 32     /* Tallest allowable tree */
 
 struct rbtree {
     rbnode *root;       /* Top of the tree */
@@ -95,7 +95,7 @@ node_free_data(const rbnode *node)
 /*
  * Returns 1 for a red node, 0 for a black node.
  */
-static int
+static inline int
 is_red(const rbnode *root)
 {
     return root != nullptr && root->red == 1;
@@ -140,7 +140,7 @@ rbdouble(rbnode *root, int dir)
  * data.  This function does not insert the new node into a tree.
  */
 static rbnode *
-new_node(rbtree *tree, Var key, Var value)
+new_node(rbtree *tree, Var& key, Var& value)
 {
     rbnode *rn = (rbnode *)mymalloc(sizeof * rn, M_NODE);
 
@@ -160,7 +160,7 @@ new_node(rbtree *tree, Var key, Var value)
  * pointer must be released with `rbdelete'.
  */
 static rbtree *
-rbnew(void)
+rbnew()
 {
     rbtree *rt = (rbtree *)mymalloc(sizeof * rt, M_TREE);
 
@@ -218,7 +218,7 @@ rbdelete(rbtree *tree)
  * pointer if no data could be found.
  */
 static rbnode *
-rbfind(rbtree *tree, rbnode *node, int case_matters)
+rbfind(const rbtree *tree, const rbnode *node, int case_matters)
 {
     rbnode *it = tree->root;
 
