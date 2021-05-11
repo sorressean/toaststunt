@@ -329,7 +329,7 @@ bf_list_flatten(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(ret);
 }
 
-static inline void add_variable_to_stream(std::stringstream& st, const Var& v)
+static inline void add_variable_to_stream(stringstream& st, const Var& v)
 {
     if (v.type != TYPE_STR)
         st << VarToString(v);
@@ -347,7 +347,7 @@ static package bf_join(Var arglist, Byte next, void *vdata, Objid progr)
             return make_var_pack(Var::new_string(""));
         }
 
-    std::stringstream st;
+    stringstream st;
     const char* sep = (argLength == 1? nullptr : arglist.v.list[2].v.str);
     for (unsigned int index = 1; index <= listLength-1; ++index)
         {
@@ -376,9 +376,9 @@ static package bf_list_remove_duplicates(Var arglist, Byte next, void *vdata, Ob
     return make_var_pack(ret);
 }
 
-static inline std::vector<Objid> all_contents(const Var& object)
+static inline vector<Objid> all_contents(const Var& object)
 {
-    std::vector<Objid> objids;
+    vector<Objid> objids;
     const auto topObject = dbpriv_find_object(object.v.obj);
     const auto objectCount = listlength(topObject->contents);
     for (int index = 1; index <= objectCount; ++index)
@@ -674,9 +674,9 @@ static void sort_alist_callback(Var arglist, Var *ret)
                 }
         }
 
-    std::sort(values.begin(), values.end(), AlistCompare(arglist.v.list[list_to_sort].v.list, natural, index));
+    sort(values.begin(), values.end(), AlistCompare(arglist.v.list[list_to_sort].v.list, natural, index));
     if (reverse)
-        std::reverse(std::begin(values), std::end(values));
+        std::reverse(begin(values), end(values));
 
     *ret = new_list(values.size());
     int moo_list_pos = 0;
