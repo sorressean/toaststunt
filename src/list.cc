@@ -114,11 +114,14 @@ destroy_list(Var list)
 Var
 list_dup(Var list)
 {
-    int i, n = list.v.list[0].v.num;
+    const int n = list.v.list[0].v.num;
     Var _new = new_list(n);
 
-    for (i = 1; i <= n; i++)
-        _new.v.list[i] = var_ref(list.v.list[i]);
+    for (int i = 1; i <= n; i++)
+{
+            const auto type = list.v.list[i].type;
+            _new.v.list[i] = (type == TYPE_WAIF || type == TYPE_ANON? var_ref(list.v.list[i]) : var_dup(list.v.list[i]));
+        }
 
     gc_set_color(_new.v.list, gc_get_color(list.v.list));
 
