@@ -25,7 +25,7 @@
  * panics.  Define LOG_COMMANDS to enable this logging.
  */
 
-/* #define LOG_COMMANDS */
+#define LOG_COMMANDS
 
 /******************************************************************************
  * When enabled, this option will cause .program and set_verb_code to write
@@ -39,7 +39,7 @@
  * input to the log file.
  */
 
-/* #define LOG_EVALS */
+#define LOG_EVALS
 
 /******************************************************************************
  * Define ENABLE_GC to enable automatic garbage collection of cyclic data
@@ -58,7 +58,7 @@
  * stats and debugging information while the server is running.
  */
 
-/* #define LOG_GC_STATS */
+#define LOG_GC_STATS */
 
 /******************************************************************************
  * The server normally forks a separate process to make database checkpoints;
@@ -130,14 +130,14 @@
 #define DEFAULT_FG_SECONDS       5
 #define DEFAULT_BG_SECONDS       3
 
-#define DEFAULT_LAG_THRESHOLD    5.0
+#define DEFAULT_LAG_THRESHOLD    3.0
 
 /******************************************************************************
  * DEFAULT_PORT is the TCP port number on which the server listenes when no
  * port argument is given on the command line.
  */
 
-#define DEFAULT_PORT 		7777
+#define DEFAULT_PORT 		4000
 
 /******************************************************************************
  * MP_SELECT	 The server will assume that the select() system call exists.
@@ -189,7 +189,7 @@
  * unaffected by this option.
  */
 
-#define USE_TLS
+//#define USE_TLS
 #define VERIFY_TLS_PEERS
 #define DEFAULT_TLS_CERT    "/etc/letsencrypt/live/fullchain.pem"
 #define DEFAULT_TLS_KEY     "/etc/letsencrypt/live/privkey.pem"
@@ -225,8 +225,8 @@
 
 #define MAX_QUEUED_OUTPUT         65536
 #define MAX_QUEUED_INPUT          MAX_QUEUED_OUTPUT
-#define MAX_LINE_BYTES            5242880
-#define DEFAULT_CONNECT_TIMEOUT   300
+#define MAX_LINE_BYTES            65536
+#define DEFAULT_CONNECT_TIMEOUT   150
 
 /* In order to avoid weirdness from these limits being set too small,
  * we impose the following (arbitrary) respective minimum values.
@@ -235,7 +235,7 @@
  * likewise for the other options.
  */
 
-#define MIN_MAX_QUEUED_OUTPUT         2048
+#define MIN_MAX_QUEUED_OUTPUT         1024
 
 /******************************************************************************
  * On connections that have not been set to binary mode, the server normally
@@ -254,8 +254,8 @@
  * Do not set either value to a number less than 1.
  */
 
-#define PATTERN_CACHE_SIZE      20
-#define PCRE_PATTERN_CACHE_SIZE 20
+#define PATTERN_CACHE_SIZE      64
+#define PCRE_PATTERN_CACHE_SIZE 64
 
 /******************************************************************************
  * Prior to 1.8.4 property lookups were required on every reference to a
@@ -387,7 +387,7 @@
  */
 
 #define EXEC_SUBDIR "executables/"
-#define EXEC_MAX_PROCESSES 256
+#define EXEC_MAX_PROCESSES 64
 
 /**
 * Should we disable clearing of last move properties?
@@ -403,7 +403,7 @@
 
 #define FILE_SUBDIR "files/"
 #define FILE_IO_BUFFER_LENGTH 4096
-#define FILE_IO_MAX_FILES     256
+#define FILE_IO_MAX_FILES     64
 
 /******************************************************************************
  * Minimum number of bytes of entropy (random data) to use to seed the
@@ -427,7 +427,7 @@
  ******************************************************************************
  */
 
-#define COLOR_LOGS 1
+#define COLOR_LOGS 0
 
 /******************************************************************************
  * Turn on WAIF_DICT for Jay Carlson's patch that makes waif[x]=y and waif[x]
@@ -474,7 +474,7 @@
  * (The number defined is how many tasks will get saved.)
  ******************************************************************************
 */
-#define SAVE_FINISHED_TASKS 100
+#define SAVE_FINISHED_TASKS 256
 
 /******************************************************************************
  * For debugging tracebacks, it is possible to capture the variables for the
@@ -485,7 +485,7 @@
  * (and possibly memory intensive).
  ******************************************************************************
 */
-/* #define INCLUDE_RT_VARS */
+#define INCLUDE_RT_VARS
 
 /******************************************************************************
  * The server supports 64-bit integers. If you don't want the added memory usage
@@ -529,7 +529,7 @@
  ******************************************************************************
  */
 
-#define TOTAL_BACKGROUND_THREADS    2
+#define TOTAL_BACKGROUND_THREADS    16
 #define DEFAULT_THREAD_MODE         true
 
 /******************************************************************************
