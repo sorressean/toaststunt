@@ -523,7 +523,7 @@ dequeue_bg_task(tqueue * tq)
     return t;
 }
 
-static char oob_quote_prefix[] = OUT_OF_BAND_QUOTE_PREFIX;
+static const char oob_quote_prefix[] = OUT_OF_BAND_QUOTE_PREFIX;
 #define oob_quote_prefix_length (sizeof(oob_quote_prefix) - 1)
 
 enum dequeue_how { DQ_FIRST = -1, DQ_OOB = 0, DQ_INBAND = 1 };
@@ -1069,10 +1069,9 @@ tasks_connection_options(task_queue q, Var list)
 static void
 enqueue_input_task(tqueue * tq, const char *input, int at_front, int binary, bool is_telnet)
 {
-    static char oob_prefix[] = OUT_OF_BAND_PREFIX;
-    task *t;
-
-    t = (task *)mymalloc(sizeof(task), M_TASK);
+    static const char oob_prefix[] = OUT_OF_BAND_PREFIX;
+static const char mxp_oob_prefix[] = {27,91,49,122};
+        task* t = (task *)mymalloc(sizeof(task), M_TASK);
     if (binary)
         t->kind = TASK_BINARY;
     else if (is_telnet)
@@ -1082,6 +1081,8 @@ enqueue_input_task(tqueue * tq, const char *input, int at_front, int binary, boo
         t->kind = TASK_QUOTED;
     else if (sizeof(oob_prefix) > 1
              && strncmp(oob_prefix, input, sizeof(oob_prefix) - 1) == 0)
+        t->kind = TASK_OOB;
+    else if (strncmp(mxp_oob_prefix, input, sizeof(mxp_oob_prefix) - 1) == 0)
         t->kind = TASK_OOB;
     else
         t->kind = TASK_INBAND;
