@@ -450,7 +450,12 @@ parents_ok(Object *o)
     return 1;
 }
 
-int
+static int waif_valid(const Var& v)
+{
+return v.type == TYPE_WAIF && valid(v.v.waif->_class);
+}
+
+static int
 anon_valid(Object *o)
 {
     return o
@@ -459,11 +464,20 @@ anon_valid(Object *o)
 }
 
 int
-is_valid(Var obj)
+is_valid(const Var& obj)
 {
-    return (TYPE_ANON == obj.type) ?
-           anon_valid(obj.v.anon) :
-           valid(obj.v.obj);
+    if (obj.type == TYPE_ANON)
+    {
+        return anon_valid(obj.v.anon);
+    }
+    else if (obj.type == TYPE_WAIF)
+    {
+        return waif_valid(obj);
+    }
+    else
+    {
+        return valid(obj.v.obj);
+    }
 }
 
 Objid
