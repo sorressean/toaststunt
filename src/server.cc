@@ -2103,22 +2103,17 @@ bf_usage(Var arglist, Byte next, void *vdata, Objid progr)
     if (!is_wizard(progr))
         return make_error_pack(E_PERM);
 
-    Var r = new_list(9);
+    Var r = new_map();
     Var cpu = new_list(3);
 
-    // Setup all of our types ahead of time.
-    int x = 0;
-    for (x = 3; x <= r.v.list[0].v.num; x++)
-        r.v.list[x].type = TYPE_INT;
-
-    for (x = 1; x <= 3; x++)
+    for (int x = 1; x <= 3; x++)
         cpu.v.list[x] = Var::new_int(0); //initialize to all 0
 
 #if !defined(__FreeBSD__) && !defined(__MACH__)
     struct sysinfo sys_info;
     int info_ret = sysinfo(&sys_info);
 
-    for (x = 0; x < 3; x++)
+    for (int x = 0; x < 3; x++)
         cpu.v.list[x + 1].v.num = (info_ret != 0 ? 0 : sys_info.loads[x]);
 #else
     /*** Begin CPU load averages ***/
@@ -2126,7 +2121,7 @@ bf_usage(Var arglist, Byte next, void *vdata, Objid progr)
     struct loadavg load;
     size_t size = sizeof(load);
     if (sysctlbyname("vm.loadavg", &load, &size, 0, 0) != -1) {
-        for (x = 0; x < 3; x++)
+        for (int x = 0; x < 3; x++)
             cpu.v.list[x + 1].v.num = load.ldavg[x];
     }
 #endif
@@ -2136,20 +2131,18 @@ bf_usage(Var arglist, Byte next, void *vdata, Objid progr)
     struct rusage usage;
     getrusage(RUSAGE_SELF, &usage);
 
-    r.v.list[1].type = TYPE_FLOAT;
-    r.v.list[2].type = TYPE_FLOAT;
-    r.v.list[1].v.fnum = (double)usage.ru_utime.tv_sec + (double)usage.ru_utime.tv_usec / CLOCKS_PER_SEC;
-    r.v.list[2].v.fnum = (double)usage.ru_stime.tv_sec + (double)usage.ru_stime.tv_usec / CLOCKS_PER_SEC;
-    r.v.list[3].v.num = usage.ru_minflt;
-    r.v.list[4].v.num = usage.ru_majflt;
-    r.v.list[5].v.num = usage.ru_inblock;
-    r.v.list[6].v.num = usage.ru_oublock;
-    r.v.list[7].v.num = usage.ru_nvcsw;
-    r.v.list[8].v.num = usage.ru_nivcsw;
-    r.v.list[9].v.num = usage.ru_nsignals;
+    r = mapinsert(r, str_dup_to_var("utime"), Var::new_float((double)usage.ru_utime.tv_sec + (double)usage.ru_utime.tv_usec / CLOCKS_PER_SEC));
+    r = mapinsert(r, str_dup_to_var("stime"), Var::new_float((double)usage.ru_stime.tv_sec + (double)usage.ru_stime.tv_usec / CLOCKS_PER_SEC));
+    r = mapinsert(r, str_dup_to_var("reclaims"), Var::new_int(usage.ru_minflt));
+    r = mapinsert(r, str_dup_to_var("faults"), Var::new_int(usage.ru_majflt));
+    r = mapinsert(r, str_dup_to_var("blocked_input_ops"), Var::new_int(usage.ru_inblock));
+    r = mapinsert(r, str_dup_to_var("blocked_output_ops"), Var::new_int(usage.ru_oublock));
+    r = mapinsert(r, str_dup_to_var("voluntary_switches"), Var::new_int(usage.ru_nvcsw));
+    r = mapinsert(r, str_dup_to_var("involuntary_switches"), Var::new_int(usage.ru_nivcsw));
+    r = mapinsert(r, str_dup_to_var("signals"), Var::new_int(usage.ru_nsignals));
 
     // Add in our load averages.
-    r = listinsert(r, cpu, 1);
+    r = mapinsert(r, str_dup_to_var("loadavg"), cpu);
     return make_var_pack(r);
 }
 
