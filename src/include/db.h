@@ -106,7 +106,8 @@ extern void db_shutdown(void);
 /**** objects ****/
 extern void db_clear_ancestor_cache();
 extern int valid(Objid);
-extern int is_valid(Var);
+extern int waif_valid(const Var& v);
+extern int is_valid(const Var&);
 
 extern Objid db_create_object(Num new_objid);
 				/* Creates a new object with parent & location
