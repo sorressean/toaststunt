@@ -145,7 +145,7 @@ aux_free(Var v)
 #ifdef ENABLE_GC
 /* Corresponds to `Decrement' and `Release' in Bacon and Rajan. */
 void
-complex_free_var(Var& v)
+complex_free_var(Var v)
 {
     switch (v.type) {
         case TYPE_STR:
@@ -322,7 +322,7 @@ complex_var_ref(Var v)
 #endif
 
 Var
-complex_var_dup(Var& v)
+complex_var_dup(Var v)
 {
     switch (v.type) {
         case TYPE_STR:

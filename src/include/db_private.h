@@ -234,7 +234,7 @@ extern void dbpriv_set_dbio_output(FILE *);
 /****/
 
 static inline Object *
-dbpriv_dereference(const Var& v)
+dbpriv_dereference(Var v)
 {
     return (TYPE_OBJ == v.type)
            ? dbpriv_find_object(v.v.obj)

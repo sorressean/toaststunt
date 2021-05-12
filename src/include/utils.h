@@ -38,9 +38,9 @@ extern int verbcasecmp(const char *verb, const char *word);
 
 extern unsigned str_hash(const char *);
 
-extern void complex_free_var(Var&);
+extern void complex_free_var(Var);
 extern Var complex_var_ref(Var&);
-extern Var complex_var_dup(Var&);
+extern Var complex_var_dup(Var);
 extern int var_refcount(Var&);
 
 extern void aux_free(Var);
