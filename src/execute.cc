@@ -470,44 +470,39 @@ make_stack_list(activation * stack, int start, int end, int include_end,
         Var v;
 
         if (include_end || i != end) {
-            v = r.v.list[j++] = new_list(listlen);
-            v.v.list[1] = anonymizing_var_ref(stack[i]._this, progr);
-            v.v.list[2] = str_ref_to_var(stack[i].verb);
-            v.v.list[3] = Var::new_obj(stack[i].progr);
-            v.v.list[4] = anonymizing_var_ref(stack[i].vloc, progr);
-            v.v.list[5] = Var::new_obj(stack[i].player);
+            v = new_map();
+            v = mapinsert(v, str_dup_to_var("this"), anonymizing_var_ref(stack[i]._this, progr));
+            v = mapinsert(v, str_dup_to_var("name"), str_ref_to_var(stack[i].verb));
+            v=mapinsert(v, str_dup_to_var("type"), str_dup_to_var("verb"));
+            v = mapinsert(v, str_dup_to_var("programmer"), Var::new_obj(stack[i].progr));
+            v = mapinsert(v, str_dup_to_var("vloc"), anonymizing_var_ref(stack[i].vloc, progr));
+            v = mapinsert(v, str_dup_to_var("player"), Var::new_obj(stack[i].player));
             if (line_numbers_too) {
-                v.v.list[include_variables ? listlen - 1 : listlen].type = TYPE_INT;
-                v.v.list[include_variables ? listlen - 1 : listlen].v.num = find_line_number(stack[i].prog,
+                v = mapinsert(v, str_dup_to_var("line"), Var::new_int(find_line_number(stack[i].prog,
                         (i == 0 ? root_vector
                          : MAIN_VECTOR),
-                        stack[i].error_pc);
+                        stack[i].error_pc)));
             }
             if (include_variables) {
-                v.v.list[listlen].type = TYPE_MAP;
-                v.v.list[listlen] = make_rt_var_map(stack[i].rt_env, stack[i].prog->var_names, stack[i].prog->num_var_names);
+                v = mapinsert(v, str_dup_to_var("variables"), make_rt_var_map(stack[i].rt_env, stack[i].prog->var_names, stack[i].prog->num_var_names));
             }
+            r.v.list[j++] =  v;
         }
         if (i != start && stack[i].bi_func_pc) {
-            v = r.v.list[j++] = new_list(listlen);
-            v.v.list[1].type = TYPE_OBJ;
-            v.v.list[1].v.obj = NOTHING;
-            v.v.list[2].type = TYPE_STR;
-            v.v.list[2].v.str = str_dup(name_func_by_num(stack[i].bi_func_id));
-            v.v.list[3].type = TYPE_OBJ;
-            v.v.list[3].v.obj = NOTHING;
-            v.v.list[4].type = TYPE_OBJ;
-            v.v.list[4].v.obj = NOTHING;
-            v.v.list[5].type = TYPE_OBJ;
-            v.v.list[5].v.obj = stack[i].player;
+            v = new_map();
+            v = mapinsert(v, str_dup_to_var("this"), Var::new_obj(NOTHING));
+            v=mapinsert(v, str_dup_to_var("type"), str_dup_to_var("builtin"));
+            v = mapinsert(v, str_dup_to_var("name"), str_dup_to_var(name_func_by_num(stack[i].bi_func_id)));
+            v = mapinsert(v, str_dup_to_var("programmer"), Var::new_obj(NOTHING));
+v = mapinsert(v, str_dup_to_var("vloc"), Var::new_obj(NOTHING));
+            v = mapinsert(v, str_dup_to_var("player"), Var::new_obj(stack[i].player));
             if (line_numbers_too) {
-                v.v.list[include_variables ? listlen - 1 : listlen].type = TYPE_INT;
-                v.v.list[include_variables ? listlen - 1 : listlen].v.num = stack[i].bi_func_pc;
+                v = mapinsert(v, str_dup_to_var("line"), Var::new_int(stack[i].bi_func_pc));
             }
             if (include_variables) {
-                v.v.list[listlen].type = TYPE_MAP;
-                v.v.list[listlen] = make_rt_var_map(stack[i].rt_env, stack[i].prog->var_names, stack[i].prog->num_var_names);
+                v = mapinsert(v, str_dup_to_var("variables"), make_rt_var_map(stack[i].rt_env, stack[i].prog->var_names, stack[i].prog->num_var_names));
             }
+            r.v.list[j++] =  v;
         }
     }
 

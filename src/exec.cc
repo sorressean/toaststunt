@@ -36,6 +36,7 @@
 #include <string.h>
 #include <unistd.h>
 
+#include "map.h"
 #include "network.h"
 
 #include "exec.h"
@@ -107,17 +108,15 @@ malloc_task_waiting_on_exec()
 static void
 free_task_waiting_on_exec(task_waiting_on_exec * tw)
 {
-    int i;
-
     if (tw->cmd)
         free_str(tw->cmd);
     if (tw->args) {
-        for (i = 0; tw->args[i]; i++)
+        for (int i = 0; tw->args[i]; i++)
             free_str(tw->args[i]);
         myfree(tw->args, M_ARRAY);
     }
     if (tw->env) {
-        for (i = 0; tw->env[i]; i++)
+        for (int i = 0; tw->env[i]; i++)
             free_str(tw->env[i]);
         myfree(tw->env, M_ARRAY);
     }
@@ -141,8 +140,7 @@ exec_waiter_enumerator(task_closure closure, void *data)
 
     BLOCK_SIGCHLD;
 
-    int i;
-    for (i = 0; i < EXEC_MAX_PROCESSES; i++) {
+    for (int i = 0; i < EXEC_MAX_PROCESSES; i++) {
         if (process_table[i]) {
             if (TWS_KILL != process_table[i]->status) {
                 action = (*closure) (process_table[i]->the_vm,
@@ -508,8 +506,8 @@ exec_complete(pid_t pid, int code)
 {
     task_waiting_on_exec *tw = nullptr;
 
-    int i;
-    for (i = 0; i < EXEC_MAX_PROCESSES; i++)
+    
+    for (int i = 0; i < EXEC_MAX_PROCESSES; i++)
         if (process_table[i] && process_table[i]->pid == pid) {
             tw = process_table[i];
             break;
@@ -537,7 +535,7 @@ exec_complete(pid_t pid, int code)
  * Called from main_loop() in server.c.
  */
 void
-deal_with_child_exit(void)
+deal_with_child_exit()
 {
     if (!sigchild_interrupt)
         return;
@@ -548,20 +546,16 @@ deal_with_child_exit(void)
 
     task_waiting_on_exec *tw = nullptr;
 
-    int i;
-    for (i = 0; i < EXEC_MAX_PROCESSES; i++) {
+    for (int i = 0; i < EXEC_MAX_PROCESSES; i++) {
         tw = process_table[i];
         if (tw && TWS_STOP == tw->status) {
             Var v;
-            v = new_list(3);
-            v.v.list[1].type = TYPE_INT;
-            v.v.list[1].v.num = tw->code;
+            v = new_map();
+            v=mapinsert(v, str_dup_to_var("code"), Var::new_int(tw->code));
             stdout_readable(tw->fout, tw);
-            v.v.list[2].type = TYPE_STR;
-            v.v.list[2].v.str = str_dup(reset_stream(tw->sout));
+            v=mapinsert(v, str_dup_to_var("stdout"), str_dup_to_var(reset_stream(tw->sout)));
             stderr_readable(tw->ferr, tw);
-            v.v.list[3].type = TYPE_STR;
-            v.v.list[3].v.str = str_dup(reset_stream(tw->serr));
+            v=mapinsert(v, str_dup_to_var("stderr"), str_dup_to_var(reset_stream(tw->serr)));
 
             resume_task(tw->the_vm, v);
         }

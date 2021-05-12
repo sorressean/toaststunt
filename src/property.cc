@@ -17,6 +17,7 @@
 
 #include "db.h"
 #include "functions.h"
+#include "map.h"
 #include "list.h"
 #include "storage.h"
 #include "utils.h"
@@ -67,7 +68,6 @@ bf_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
     const Var obj = arglist.v.list[1];
     const char *pname = arglist.v.list[2].v.str;
     Var r;
-    unsigned flags;
     char perms[4], *s;
 
     if (!obj.is_object()) {
@@ -86,12 +86,10 @@ bf_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
     else if (!db_property_allows(h, progr, PF_READ))
         return make_error_pack(E_PERM);
 
-    r = new_list(2);
-    r.v.list[1].type = TYPE_OBJ;
-    r.v.list[1].v.obj = db_property_owner(h);
-    r.v.list[2].type = TYPE_STR;
+    r = new_map();
+    r = mapinsert(r, str_dup_to_var("owner"), Var::new_obj(db_property_owner(h)));
     s = perms;
-    flags = db_property_flags(h);
+    const auto flags = db_property_flags(h);
     if (flags & PF_READ)
         *s++ = 'r';
     if (flags & PF_WRITE)
@@ -99,7 +97,7 @@ bf_prop_info(Var arglist, Byte next, void *vdata, Objid progr)
     if (flags & PF_CHOWN)
         *s++ = 'c';
     *s = '\0';
-    r.v.list[2].v.str = str_dup(perms);
+    r = mapinsert(r, str_dup_to_var("permissions"), str_dup_to_var(perms));
 
     return make_var_pack(r);
 }

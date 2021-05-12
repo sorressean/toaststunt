@@ -2083,17 +2083,12 @@ bf_memory_usage(Var arglist, Byte next, void *vdata, Objid progr)
     fclose(f);
 #endif
 
-    Var s = new_list(5);
-    s.v.list[1].type = TYPE_FLOAT;
-    s.v.list[2].type = TYPE_FLOAT;
-    s.v.list[3].type = TYPE_FLOAT;
-    s.v.list[4].type = TYPE_FLOAT;
-    s.v.list[5].type = TYPE_FLOAT;
-    s.v.list[1].v.fnum = size;           // Total program size
-    s.v.list[2].v.fnum = resident;       // Resident set size
-    s.v.list[3].v.fnum = share;          // Shared pages from shared mappings
-    s.v.list[4].v.fnum = text;           // Text (code)
-    s.v.list[5].v.fnum = data;           // Data + stack
+    Var s = new_map();
+    s = mapinsert(s, str_dup_to_var("size"), Var::new_float(size));
+       s = mapinsert(s, str_dup_to_var("resident"), Var::new_float(resident));
+    s = mapinsert(s, str_dup_to_var("shared"), Var::new_float(share));
+    s = mapinsert(s, str_dup_to_var("text"), Var::new_float(text));
+    s = mapinsert(s, str_dup_to_var("data"), Var::new_float(data));
 
     return make_var_pack(s);
 }
@@ -2185,7 +2180,7 @@ bf_panic(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_shutdown(Var arglist, Byte next, void *vdata, Objid progr)
 {
-    int nargs = arglist.v.list[0].v.num;
+    const int nargs = arglist.v.list[0].v.num;
     const char *message = (nargs >= 1 ? arglist.v.list[1].v.str : nullptr);
 
     if (!is_wizard(progr)) {

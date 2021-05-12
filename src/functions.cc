@@ -473,27 +473,20 @@ make_float_pack(double v)
 static Var
 function_description(int i)
 {
-    struct bft_entry entry;
-    Var v, vv;
-    int j, nargs;
-
-    entry = bf_table[i];
-    v = new_list(4);
-    v.v.list[1].type = TYPE_STR;
-    v.v.list[1].v.str = str_ref(entry.name);
-    v.v.list[2].type = TYPE_INT;
-    v.v.list[2].v.num = entry.minargs;
-    v.v.list[3].type = TYPE_INT;
-    v.v.list[3].v.num = entry.maxargs;
-    nargs = entry.maxargs == -1 ? entry.minargs : entry.maxargs;
-    vv = v.v.list[4] = new_list(nargs);
-    for (j = 0; j < nargs; j++) {
-        int proto = entry.prototype[j];
-        vv.v.list[j + 1].type = TYPE_INT;
-        vv.v.list[j + 1].v.num = proto < 0 ? proto : (proto & TYPE_DB_MASK);
+    const auto entry = bf_table[i];
+    Var r = new_map();
+    r = mapinsert(r, str_dup_to_var("name"), str_dup_to_var(entry.name));
+    r = mapinsert(r, str_dup_to_var("minargs"), Var::new_int(entry.minargs));
+       r = mapinsert(r, str_dup_to_var("maxargs"), Var::new_int(entry.maxargs));
+    const int nargs = entry.maxargs == -1 ? entry.minargs : entry.maxargs;
+    Var args = new_list(nargs);
+    for (int j = 0; j < nargs; j++) {
+        const int proto = entry.prototype[j];
+        args.v.list[j + 1].type = TYPE_INT;
+        args.v.list[j + 1].v.num = proto < 0 ? proto : (proto & TYPE_DB_MASK);
     }
-
-    return v;
+    r = mapinsert(r, str_dup_to_var("arguments"), args);
+    return r;
 }
 
 static package

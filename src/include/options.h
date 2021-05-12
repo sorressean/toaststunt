@@ -25,7 +25,7 @@
  * panics.  Define LOG_COMMANDS to enable this logging.
  */
 
-#define LOG_COMMANDS
+/*#define LOG_COMMANDS*/
 
 /******************************************************************************
  * When enabled, this option will cause .program and set_verb_code to write
@@ -254,8 +254,8 @@
  * Do not set either value to a number less than 1.
  */
 
-#define PATTERN_CACHE_SIZE      64
-#define PCRE_PATTERN_CACHE_SIZE 64
+#define PATTERN_CACHE_SIZE      30
+#define PCRE_PATTERN_CACHE_SIZE 30
 
 /******************************************************************************
  * Prior to 1.8.4 property lookups were required on every reference to a
@@ -474,7 +474,7 @@
  * (The number defined is how many tasks will get saved.)
  ******************************************************************************
 */
-#define SAVE_FINISHED_TASKS 256
+#define SAVE_FINISHED_TASKS 100
 
 /******************************************************************************
  * For debugging tracebacks, it is possible to capture the variables for the
@@ -485,7 +485,7 @@
  * (and possibly memory intensive).
  ******************************************************************************
 */
-#define INCLUDE_RT_VARS
+/*#define INCLUDE_RT_VARS*/
 
 /******************************************************************************
  * The server supports 64-bit integers. If you don't want the added memory usage
@@ -529,7 +529,7 @@
  ******************************************************************************
  */
 
-#define TOTAL_BACKGROUND_THREADS    16
+#define TOTAL_BACKGROUND_THREADS    4
 #define DEFAULT_THREAD_MODE         true
 
 /******************************************************************************
