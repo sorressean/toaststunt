@@ -3114,6 +3114,7 @@ run_interpreter(char raise, enum error e,
     postmortem = mapinsert(postmortem, var_ref(map_verb), strcmp(RUN_ACTIV.verb, "") == 0 ? str_dup_to_var("n/a") : str_dup_to_var(RUN_ACTIV.verb));
     postmortem = mapinsert(postmortem, var_ref(map_fullverb), strcmp(RUN_ACTIV.verbname, "") == 0 ? str_dup_to_var("n/a") : str_dup_to_var(RUN_ACTIV.verbname));
     postmortem = mapinsert(postmortem, var_ref(map_foreground), Var::new_int(is_fg));
+    postmortem = mapinsert(postmortem, str_dup_to_var("when"), Var::new_float(get_ftime(0)));
 #endif  /* SAVE_FINISHED_TASKS */
 
     Var total_cputime;

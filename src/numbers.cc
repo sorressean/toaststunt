@@ -723,35 +723,9 @@ bf_ctime(Var arglist, Byte next, void *vdata, Objid progr)
 static package
 bf_ftime(Var arglist, Byte next, void *vdata, Objid progr)
 {
-#ifdef __MACH__
-    // macOS only provides SYSTEM_CLOCK for monotonic time, so our arguments don't matter.
-    clock_id_t clock_type = (arglist.v.list[0].v.num == 0 ? CALENDAR_CLOCK : SYSTEM_CLOCK);
-#else
-    // Other OSes provide MONOTONIC_RAW and MONOTONIC, so we'll check args for 2(raw) or 1.
-    clockid_t clock_type = 0;
-    if (arglist.v.list[0].v.num == 0)
-        clock_type = CLOCK_REALTIME;
-    else
-        clock_type = arglist.v.list[1].v.num == 2 ? CLOCK_MONOTONIC_RAW : CLOCK_MONOTONIC;
-#endif
-
-    struct timespec ts;
-
-#ifdef __MACH__
-    // macOS lacks clock_gettime, use clock_get_time instead
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), clock_type, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    ts.tv_sec = mts.tv_sec;
-    ts.tv_nsec = mts.tv_nsec;
-#else
-    clock_gettime(clock_type, &ts);
-#endif
-
+    const int arg = (arglist.v.list[0].v.num == 1? arglist.v.list[1].v.num:0);
     free_var(arglist);
-    return make_var_pack(Var::new_float((double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0));
+    return make_var_pack(Var::new_float(get_ftime(arg)));
 }
 
 static package

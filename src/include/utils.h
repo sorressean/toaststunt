@@ -103,4 +103,5 @@ extern Var anonymizing_var_ref(Var v, Objid progr);
 				 */
 
 std::string VarToString(const Var& v);
+double get_ftime(int monotonic);
 #endif

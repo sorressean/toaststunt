@@ -16,7 +16,13 @@
  *****************************************************************************/
 
 #include <assert.h>
-
+#ifdef __MACH__
+#include <mach/clock.h>     // Millisecond time for macOS
+#include <mach/mach.h>
+#include <sys/sysctl.h>
+#endif
+#include <sys/types.h>
+#include <ctime>
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
@@ -788,4 +794,35 @@ std::string VarToString(const Var& v)
 	}
 	
 	return st.str();
+}
+
+double get_ftime(int monotonic)
+{
+#ifdef __MACH__
+    // macOS only provides SYSTEM_CLOCK for monotonic time, so our arguments don't matter.
+    clock_id_t clock_type = (monotonic == 0 ? CALENDAR_CLOCK : SYSTEM_CLOCK);
+#else
+    // Other OSes provide MONOTONIC_RAW and MONOTONIC, so we'll check args for 2(raw) or 1.
+    clockid_t clock_type = 0;
+    if (monotonic == 0)
+        clock_type = CLOCK_REALTIME;
+    else
+        clock_type = monotonic == 2 ? CLOCK_MONOTONIC_RAW : CLOCK_MONOTONIC;
+#endif
+
+    struct timespec ts;
+
+#ifdef __MACH__
+    // macOS lacks clock_gettime, use clock_get_time instead
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), clock_type, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    ts.tv_sec = mts.tv_sec;
+    ts.tv_nsec = mts.tv_nsec;
+#else
+    clock_gettime(clock_type, &ts);
+#endif
+    return (double)ts.tv_sec + (double)ts.tv_nsec / 1000000000.0;
 }
