@@ -52,6 +52,9 @@
 using namespace std;
 
 /* the following globals are the guts of the virtual machine: */
+#ifdef SAVE_FINISHED_TASKS
+static unsigned long long int postmort_id = 0;
+#endif
 static activation *activ_stack = nullptr;
 static Num max_stack_size = 0;
 static unsigned top_activ_stack;    /* points to top-of-stack
@@ -85,6 +88,8 @@ static char *waif_indexset_verb;
 #endif              /* WAIF_DICT */
 
 #ifdef SAVE_FINISHED_TASKS
+static Var map_id;
+static Var map_when;
 static Var map_this;
 static Var map_player;
 static Var map_programmer;
@@ -3104,8 +3109,9 @@ run_interpreter(char raise, enum error e,
     handler_verb_name = nullptr;
 
 #ifdef SAVE_FINISHED_TASKS
+    postmort_id+=1;
     Var postmortem = new_map();
-
+    postmortem = mapinsert(postmortem, var_ref(map_id), Var::new_int(postmort_id));
     postmortem = mapinsert(postmortem, var_ref(map_this), Var::new_obj(RUN_ACTIV._this.v.obj));
     postmortem = mapinsert(postmortem, var_ref(map_player), Var::new_obj(RUN_ACTIV.player));
     postmortem = mapinsert(postmortem, var_ref(map_programmer), Var::new_obj(RUN_ACTIV.progr));
@@ -3114,7 +3120,7 @@ run_interpreter(char raise, enum error e,
     postmortem = mapinsert(postmortem, var_ref(map_verb), strcmp(RUN_ACTIV.verb, "") == 0 ? str_dup_to_var("n/a") : str_dup_to_var(RUN_ACTIV.verb));
     postmortem = mapinsert(postmortem, var_ref(map_fullverb), strcmp(RUN_ACTIV.verbname, "") == 0 ? str_dup_to_var("n/a") : str_dup_to_var(RUN_ACTIV.verbname));
     postmortem = mapinsert(postmortem, var_ref(map_foreground), Var::new_int(is_fg));
-    postmortem = mapinsert(postmortem, str_dup_to_var("when"), Var::new_float(get_ftime(0)));
+    postmortem = mapinsert(postmortem, var_ref(map_when), Var::new_float(get_ftime(0)));
 #endif  /* SAVE_FINISHED_TASKS */
 
     Var total_cputime;
@@ -3797,6 +3803,8 @@ register_execute(void)
 #endif              /* WAIF_DICT */
 
 #ifdef SAVE_FINISHED_TASKS
+    map_id = str_dup_to_var("id");
+    map_when = str_dup_to_var("when");
     map_this = str_dup_to_var("this");
     map_player = str_dup_to_var("player");
     map_programmer = str_dup_to_var("programmer");
