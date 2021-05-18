@@ -755,6 +755,57 @@ bf_ispunct(Var arglist, Byte next, void *vdata, Objid progr)
     return make_var_pack(Var::new_int(result));
 }
 
+/**
+*When you have a set of nested maps, it's faster to be able to call this builtin.
+* map_get_recursive({"a", "b", "c"}, ["a"->["b"->["c"->32]]]) => 32;
+*/
+static package
+bf_map_get_recursive(Var arglist, Byte next, void *vdata, Objid progr)
+{
+    const auto keycount  = arglist.v.list[1].v.list[0].v.num;
+    if (!keycount)
+        {
+            free_var(arglist);
+            return make_error_pack(E_RANGE);
+        }
+
+    for (int i = 1; i <= keycount; ++i)
+        {
+            const auto type = arglist.v.list[1].v.list[i].type;
+            if (type != TYPE_STR && type != TYPE_INT && type != TYPE_FLOAT)
+                {
+                    free_var(arglist);
+                    return make_error_pack(E_RANGE);
+                }
+        }
+
+    Var value;
+    auto node = maplookup(arglist.v.list[2], arglist.v.list[1].v.list[1], &value, 0);
+    if (!node)
+        {
+            free_var(arglist);
+            return make_error_pack(E_RANGE);
+        }
+    for (int i = 2; i <= keycount; ++i)
+        {
+            if (value.type != TYPE_MAP)
+                {
+                    free_var(arglist);
+                    return make_error_pack(E_INVARG);
+                }
+            node = maplookup(value, arglist.v.list[1].v.list[i], &value, 0);
+            if (!node)
+                {
+                    free_var(arglist);
+                    return make_error_pack(E_RANGE);
+                }
+        }
+
+    value = var_ref(value);
+    free_var(arglist);
+    return make_var_pack(value);
+}
+
 void register_sorressean_extensions()
 {
     register_function("assoc", 2, 3, bf_assoc, TYPE_ANY, TYPE_LIST, TYPE_INT);
@@ -781,4 +832,5 @@ void register_sorressean_extensions()
     register_function("isdigit", 1, 1, bf_isdigit, TYPE_STR);
     register_function("isprint", 1, 1, bf_isprint, TYPE_STR);
     register_function("ispunct", 1, 1, bf_ispunct, TYPE_STR);
+    register_function("map_get_recursive", 2, 2, bf_map_get_recursive, TYPE_LIST, TYPE_MAP);
 }

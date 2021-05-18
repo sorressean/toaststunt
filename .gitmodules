@@ -4,3 +4,6 @@
 [submodule "src/dependencies/vectorclass"]
 	path = src/dependencies/vectorclass
 	url = https://github.com/vectorclass/version2
+[submodule "src/dependencies/rotations"]
+	path = src/dependencies/rotations
+	url = https://github.com/balintkaszas/rotations
