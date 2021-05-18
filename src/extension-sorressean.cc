@@ -662,7 +662,7 @@ static void sort_alist_callback(Var arglist, Var *ret)
         }
 
 //this means that we need a second loop through the list, but it makes the code more clean
-    const auto first_type = arglist.v.list[list_to_sort].v.list[index].v.list[1].type;
+    const auto first_type = arglist.v.list[list_to_sort].v.list[1].v.list[index].type;
     for (size_t count = 2; count <= list_length; ++count)
         {
             const auto type = arglist.v.list[list_to_sort].v.list[count].v.list[index].type;
