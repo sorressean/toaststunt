@@ -519,7 +519,7 @@ bf_mdistance(Var arglist, Byte next, void *vdata, Objid progr)
             if (arglist.v.list[2].v.list[index].type != TYPE_LIST)    
             {
                     free_var(arglist);
-                    return make_error_pack(E_RANGE);
+                    return make_error_pack(E_TYPE);
                 }
       
      if (arglist.v.list[2].v.list[index].v.list[0].v.num < 3)
