@@ -515,7 +515,14 @@ bf_mdistance(Var arglist, Byte next, void *vdata, Objid progr)
 //sanity check the list of objects first.
     for (auto index = 1; index <= count; ++index)
         {
-            if (arglist.v.list[2].v.list[index].v.list[0].v.num < 3)
+ 
+            if (arglist.v.list[2].v.list[index].type != TYPE_LIST)    
+            {
+                    free_var(arglist);
+                    return make_error_pack(E_RANGE);
+                }
+      
+     if (arglist.v.list[2].v.list[index].v.list[0].v.num < 3)
                 {
                     free_var(arglist);
                     return make_error_pack(E_RANGE);
