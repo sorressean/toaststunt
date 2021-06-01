@@ -15,7 +15,7 @@ static CURL *curl_handle = nullptr;
 typedef struct CurlMemoryStruct {
     char *result;
     size_t size;
-} CurlMemoryStruct;
+};
 
 static size_t
 CurlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -68,6 +68,7 @@ void curl_thread_callback(Var arglist, Var *ret)
     }
 
     curl_easy_cleanup(curl_handle);
+    free_var(arglist);
     free(chunk.result);
 }
 
@@ -75,7 +76,10 @@ static package
 bf_curl(Var arglist, Byte next, void *vdata, Objid progr)
 {
     if (!is_wizard(progr))
+    {
+        free_var(arglist);
         return make_error_pack(E_PERM);
+    }
 
     char *human_string = nullptr;
     asprintf(&human_string, "curl %s", arglist.v.list[1].v.str);
