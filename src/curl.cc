@@ -17,10 +17,12 @@ curl_option  = {{"post", 1}};
 
 
 
-typedef struct CurlMemoryStruct {
+struct CurlMemoryStruct {
     char *result;
     size_t size;
-} CurlMemoryStruct;
+};
+
+struct curl_slist *custom_headers = NULL;
 
 static size_t
 CurlWriteMemoryCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -58,6 +60,9 @@ parse_curl_option(CURL *handle, Var arglist)
             /* post request */
             curl_easy_setopt(handle, CURLOPT_POSTFIELDSIZE, (long) strlen(data));
             curl_easy_setopt(handle, CURLOPT_POSTFIELDS, data);
+            custom_headers = curl_slist_append(custom_headers, "Content-Type: application/json");
+            custom_headers = curl_slist_append(custom_headers, "Accept:");
+            curl_easy_setopt(handle, CURLOPT_HTTPHEADER, custom_headers);
             break;
         }
         default:
@@ -103,6 +108,10 @@ static void curl_thread_callback(Var arglist, Var *ret)
         oklog("CURL: %lu bytes retrieved from: %s\n", (unsigned long)chunk.size, arglist.v.list[1].v.str);
     }
 
+
+
+    curl_slist_free_all(custom_headers);
+    custom_headers = NULL;
     curl_easy_cleanup(curl_handle);
     free(chunk.result);
 }
