@@ -251,9 +251,8 @@ send_shutdown_message(const char *message)
 
     s << "*** Shutting down: " << message << " ***";
 
-const auto messageString = s.str().c_str();
     for (h = all_shandles; h; h = h->next)
-        network_send_line(h->nhandle, messageString, 1, 1);
+        network_send_line(h->nhandle, s.str().c_str(), 1, 1);
 }
 
 static void
